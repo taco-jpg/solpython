@@ -32,18 +32,19 @@ P1-C: Solidity Backend
 - [x] None Type Safety (10 tests, arithmetic/comparison with None produces VMError)
 - [x] Unbound Local Error (5 tests, semantic analyzer detects read-before-assign)
 - [x] Dict String Keys (8 tests, string key dict ops + `in` operator via OP_IN)
+- [x] For Loop Variable Range (5 tests, range with variable/expr args all working)
 
 ## IN_PROGRESS
-FIX-6: For Loop with Variable Range
+(None — all features complete)
 
 ## NEXT_UP
-(None — all features complete after FIX-6)
+(None — all features complete)
 
 ## BLOCKERS
 (None yet)
 
 ## TEST_COUNT
-451 passing / 451 total
+456 passing / 456 total
 
 ## PHASE DETAILS
 
