@@ -453,18 +453,26 @@ contract Parser {
         return l;
     }
 
-    function _isCmp(TokenType t) internal pure returns (bool) {
-        return t == TokenType.OP_EQ || t == TokenType.OP_NEQ || t == TokenType.OP_LT ||
-               t == TokenType.OP_GT || t == TokenType.OP_LTE || t == TokenType.OP_GTE;
+    function _isCmp(TokenType t) internal view returns (bool) {
+        if (t == TokenType.OP_EQ || t == TokenType.OP_NEQ || t == TokenType.OP_LT ||
+            t == TokenType.OP_GT || t == TokenType.OP_LTE || t == TokenType.OP_GTE ||
+            t == TokenType.KW_IN) return true;
+        // Check for "not in" (KW_NOT followed by KW_IN)
+        if (t == TokenType.KW_NOT && _peek() == TokenType.KW_IN) return true;
+        return false;
     }
 
-    function _cmpOp(TokenType t) internal pure returns (CompOpType) {
+    function _cmpOp(TokenType t) internal returns (CompOpType) {
         if (t == TokenType.OP_EQ) return CompOpType.EQ;
         if (t == TokenType.OP_NEQ) return CompOpType.NEQ;
         if (t == TokenType.OP_LT) return CompOpType.LT;
         if (t == TokenType.OP_GT) return CompOpType.GT;
         if (t == TokenType.OP_LTE) return CompOpType.LTE;
-        return CompOpType.GTE;
+        if (t == TokenType.OP_GTE) return CompOpType.GTE;
+        if (t == TokenType.KW_IN) return CompOpType.IN;
+        // "not in" — consume both tokens
+        _adv(); // consume "not"
+        return CompOpType.NOT_IN;
     }
 
     function _add() internal returns (uint256) {
@@ -743,6 +751,10 @@ contract Parser {
 
     function _cur() internal view returns (TokenType) {
         return p < tokenCount ? lexer.getTokenType(p) : TokenType.EOF;
+    }
+
+    function _peek() internal view returns (TokenType) {
+        return (p + 1) < tokenCount ? lexer.getTokenType(p + 1) : TokenType.EOF;
     }
 
     function _lex() internal view returns (string memory) {

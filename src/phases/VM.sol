@@ -135,6 +135,7 @@ contract VM {
     uint8 constant OP_STR_CONTAINS = 0xA8;
     uint8 constant OP_STR_SPLIT = 0xA9;
     uint8 constant OP_STR_CHAR_AT = 0xAA;
+    uint8 constant OP_IN = 0xAB;         // x in container (dict/set/string)
 
     // GC opcodes
     uint8 constant OP_GC_REF = 0xB0;    // Increment refcount of TOS
@@ -232,6 +233,7 @@ contract VM {
             else if (op == OP_STR_CONTAINS) _execStrContains();
             else if (op == OP_STR_SPLIT) _execStrSplit();
             else if (op == OP_STR_CHAR_AT) _execStrCharAt();
+            else if (op == OP_IN) _execIn();
             else if (op == OP_GC_REF) _execGcRef();
             else if (op == OP_GC_UNREF) _execGcUnref();
             else if (op == OP_GC_CLEANUP) _execGcCleanup();
@@ -645,27 +647,51 @@ contract VM {
     }
 
     function _execListGet() internal {
-        uint256 index = _pop();
-        uint256 listId = _pop();
-        if (index >= lists[listId].length) {
+        uint256 key = _pop();
+        uint256 id = _pop();
+
+        // Check if it's a dict
+        if (id >= DICT_ID_OFFSET && id < DICT_ID_OFFSET + nextDictId) {
+            if (dictHasKey[id][key]) {
+                stack.push(dictValues[id][key]);
+            } else {
+                stack.push(type(uint256).max); // NONE
+            }
+            return;
+        }
+
+        // Otherwise treat as list
+        if (key >= lists[id].length) {
             emit VMError("List index out of bounds", pc - 1);
             pc = code.length; // halt
             stack.push(0);
             return;
         }
-        stack.push(lists[listId][index]);
+        stack.push(lists[id][key]);
     }
 
     function _execListSet() internal {
         uint256 value = _pop();
-        uint256 index = _pop();
-        uint256 listId = _pop();
-        if (index >= lists[listId].length) {
+        uint256 key = _pop();
+        uint256 id = _pop();
+
+        // Check if it's a dict
+        if (id >= DICT_ID_OFFSET && id < DICT_ID_OFFSET + nextDictId) {
+            if (!dictHasKey[id][key]) {
+                dictKeyList[id].push(key);
+                dictHasKey[id][key] = true;
+            }
+            dictValues[id][key] = value;
+            return;
+        }
+
+        // Otherwise treat as list
+        if (key >= lists[id].length) {
             emit VMError("List index out of bounds", pc - 1);
             pc = code.length; // halt
             return;
         }
-        lists[listId][index] = value;
+        lists[id][key] = value;
     }
 
     function _execListLen() internal {
@@ -840,6 +866,33 @@ contract VM {
     function _execSetLen() internal {
         uint256 setId = _pop();
         stack.push(setSize[setId]);
+    }
+
+    // ==================== Membership (in operator) ====================
+
+    function _execIn() internal {
+        uint256 container = _pop();
+        uint256 element = _pop();
+        // Dict
+        if (container >= DICT_ID_OFFSET && container < DICT_ID_OFFSET + nextDictId) {
+            stack.push(dictHasKey[container][element] ? 1 : 0);
+            return;
+        }
+        // Set
+        if (container >= SET_ID_OFFSET && container < SET_ID_OFFSET + nextSetId) {
+            stack.push(setMembers[container][element] ? 1 : 0);
+            return;
+        }
+        // String: check if element (as string) is contained in container (as string)
+        if (_isStringId(container) && _isStringId(element)) {
+            string memory haystack = _getAnyString(container);
+            string memory needle = _getAnyString(element);
+            bool found = _strContains(bytes(haystack), bytes(needle));
+            stack.push(found ? 1 : 0);
+            return;
+        }
+        // Fallback: not found
+        stack.push(0);
     }
 
     // ==================== String Operations ====================

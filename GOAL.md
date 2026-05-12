@@ -29,18 +29,21 @@ P1-C: Solidity Backend
 - [x] P4: Exception Handling (15 tests, try/except/finally/raise)
 - [x] P5: Venv (17 tests, compilation environment with VFS, settings, module paths)
 - [x] Class System (15 tests, instantiation, self, methods, inheritance)
+- [x] None Type Safety (10 tests, arithmetic/comparison with None produces VMError)
+- [x] Unbound Local Error (5 tests, semantic analyzer detects read-before-assign)
+- [x] Dict String Keys (8 tests, string key dict ops + `in` operator via OP_IN)
 
 ## IN_PROGRESS
-(None — all features complete)
+FIX-6: For Loop with Variable Range
 
 ## NEXT_UP
-(None — all features complete)
+(None — all features complete after FIX-6)
 
 ## BLOCKERS
 (None yet)
 
 ## TEST_COUNT
-428 passing / 428 total
+451 passing / 451 total
 
 ## PHASE DETAILS
 

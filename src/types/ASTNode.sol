@@ -79,7 +79,9 @@ enum CompOpType {
     LT,     // <
     GT,     // >
     LTE,    // <=
-    GTE     // >=
+    GTE,    // >=
+    IN,     // in
+    NOT_IN  // not in
 }
 
 enum AugAssignOp {

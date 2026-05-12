@@ -118,6 +118,7 @@ contract CodeGenerator {
     uint8 constant OP_STR_CONTAINS = 0xA8;
     uint8 constant OP_STR_SPLIT = 0xA9;
     uint8 constant OP_STR_CHAR_AT = 0xAA;
+    uint8 constant OP_IN = 0xAB;         // x in container
 
     uint8 constant OP_TRY_BEGIN = 0xC0;
     uint8 constant OP_TRY_END = 0xC1;
@@ -962,7 +963,9 @@ contract CodeGenerator {
         else if (op == CompOpType.LT) _emitOp(OP_LT);
         else if (op == CompOpType.GT) _emitOp(OP_GT);
         else if (op == CompOpType.LTE) _emitOp(OP_LTE);
-        else _emitOp(OP_GTE);
+        else if (op == CompOpType.GTE) _emitOp(OP_GTE);
+        else if (op == CompOpType.IN) _emitOp(OP_IN);
+        else if (op == CompOpType.NOT_IN) { _emitOp(OP_IN); _emitOp(OP_NOT); }
     }
 
     function _genFuncCall(uint256 nodeIdx) internal {
