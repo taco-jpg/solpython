@@ -55,7 +55,10 @@ enum NodeType {
     // Class system
     ATTR_ACCESS,        // obj.attr  child1=object, strValue=attribute_name
     METHOD_CALL,        // obj.method(args)  child1=object, strValue=method_name, exprAux=args
-    SELF_ASSIGN         // self.x = val  strValue=attr_name, child1=value (inside method body)
+    SELF_ASSIGN,        // self.x = val  strValue=attr_name, child1=value (inside method body)
+
+    // Tuples
+    TUPLE_LITERAL       // (a, b, c)  exprAux = [e0, e1, ...]
 }
 
 enum BinaryOpType {

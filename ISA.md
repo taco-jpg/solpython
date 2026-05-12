@@ -91,6 +91,8 @@ Frame index 0 = global, 1 = current local. Variable index is the slot number.
 | 0x71   | LIST_GET  | —        | Pop index and list pointer, push `list[index]` |
 | 0x72   | LIST_SET  | —        | Pop value, index, and list pointer; set `list[index] = value` |
 | 0x73   | LIST_LEN  | —        | Pop list pointer, push length |
+| 0x74   | MAKE_TUPLE | 2 bytes (num_elements) | Pop N elements, create tuple, push tuple pointer |
+| 0x75   | TUPLE_GET | —        | Pop index and tuple pointer, push `tuple[index]` |
 
 ### I/O
 

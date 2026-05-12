@@ -92,6 +92,9 @@ contract CodeGenerator {
     uint8 constant OP_LIST_SET = 0x72;
     uint8 constant OP_LIST_LEN = 0x73;
 
+    uint8 constant OP_MAKE_TUPLE = 0x74;
+    uint8 constant OP_TUPLE_GET = 0x75;
+
     uint8 constant OP_PRINT = 0x80;
     uint8 constant OP_EMIT = 0x81;
     uint8 constant OP_PRINT_STR = 0x82;
@@ -222,6 +225,21 @@ contract CodeGenerator {
 
     function _genAssign(uint256 nodeIdx) internal {
         uint256 lhsIdx = _c1(nodeIdx);
+        if (_nt(lhsIdx) == NodeType.TUPLE_LITERAL) {
+            // Tuple unpacking: a, b, c = expr
+            _genExpr(_c2(nodeIdx)); // push RHS (tuple)
+            uint256 count = _ac(lhsIdx);
+            uint256 start = _ai(lhsIdx);
+            for (uint256 i = 0; i < count; i++) {
+                _emitOp(OP_DUP);          // duplicate tuple ID
+                _genPush(uint256(i));      // push index
+                _emitOp(OP_TUPLE_GET);    // get element
+                uint256 target = _ea(start + i);
+                _genStoreVar(target);     // store in target variable
+            }
+            _emitOp(OP_POP); // pop the tuple ID
+            return;
+        }
         if (_nt(lhsIdx) == NodeType.ATTR_ACCESS) {
             // obj.attr = val → push obj, push val, STORE_ATTR
             _genExpr(_c1(lhsIdx)); // push object
@@ -871,6 +889,8 @@ contract CodeGenerator {
             _genFuncCall(nodeIdx);
         } else if (nt == NodeType.LIST_LITERAL) {
             _genListLiteral(nodeIdx);
+        } else if (nt == NodeType.TUPLE_LITERAL) {
+            _genTupleLiteral(nodeIdx);
         } else if (nt == NodeType.INDEX_ACCESS) {
             _genExpr(_c1(nodeIdx)); // target
             _genExpr(_c2(nodeIdx)); // index
@@ -1104,6 +1124,16 @@ contract CodeGenerator {
             _genExpr(_ea(_ai(nodeIdx) + i - 1));
         }
         _emitOp(OP_MAKE_LIST);
+        _emitUint16(uint16(elemCount));
+    }
+
+    function _genTupleLiteral(uint256 nodeIdx) internal {
+        uint256 elemCount = _ac(nodeIdx);
+        // Push elements in reverse order (so first element is on top after creation)
+        for (uint256 i = elemCount; i > 0; i--) {
+            _genExpr(_ea(_ai(nodeIdx) + i - 1));
+        }
+        _emitOp(OP_MAKE_TUPLE);
         _emitUint16(uint16(elemCount));
     }
 

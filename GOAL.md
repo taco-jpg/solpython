@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-FEAT-2: Tuple Type
+FEAT-3: Multiple Assignment
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -34,6 +34,7 @@ FEAT-2: Tuple Type
 - [x] Dict String Keys (8 tests, string key dict ops + `in` operator via OP_IN)
 - [x] For Loop Variable Range (5 tests, range with variable/expr args all working)
 - [x] Negative Indexing (8 tests, lst[-1]/s[-1], fixed list element ordering bug)
+- [x] Tuple Type (8 tests, tuple literals, indexing, unpacking, swap pattern)
 
 ## IN_PROGRESS
 (None — all features complete)
@@ -45,7 +46,7 @@ FEAT-2: Tuple Type
 (None yet)
 
 ## TEST_COUNT
-464 passing / 464 total
+472 passing / 472 total
 
 ## PHASE DETAILS
 

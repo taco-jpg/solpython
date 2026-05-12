@@ -23,6 +23,12 @@ contract VM {
     mapping(uint256 => uint256[]) private lists;
     uint256 private nextListId;
 
+    // Tuples: tupleId => elements (IDs 2^65 to 2^66 - 1)
+    mapping(uint256 => uint256[]) private tuples;
+    mapping(uint256 => uint256) private tupleLen;
+    uint256 private nextTupleId;
+    uint256 constant TUPLE_ID_OFFSET = 2**65;
+
     // Dicts: dictId => key => value (IDs 2^60 to 2^61 - 1)
     mapping(uint256 => mapping(uint256 => uint256)) private dictValues;
     mapping(uint256 => mapping(uint256 => bool)) private dictHasKey;
@@ -108,6 +114,9 @@ contract VM {
     uint8 constant OP_LIST_GET = 0x71;
     uint8 constant OP_LIST_SET = 0x72;
     uint8 constant OP_LIST_LEN = 0x73;
+
+    uint8 constant OP_MAKE_TUPLE = 0x74;  // Create tuple from TOS elements
+    uint8 constant OP_TUPLE_GET = 0x75;   // Get element from tuple by index
 
     uint8 constant OP_PRINT = 0x80;
     uint8 constant OP_EMIT = 0x81;
@@ -209,6 +218,8 @@ contract VM {
             else if (op == OP_LIST_GET) _execListGet();
             else if (op == OP_LIST_SET) _execListSet();
             else if (op == OP_LIST_LEN) _execListLen();
+            else if (op == OP_MAKE_TUPLE) _execMakeTuple();
+            else if (op == OP_TUPLE_GET) _execTupleGet();
             else if (op == OP_PRINT) _execPrint();
             else if (op == OP_EMIT) _execEmit();
             else if (op == OP_PRINT_STR) _execPrintStr();
@@ -676,6 +687,32 @@ contract VM {
             return;
         }
 
+        // Check if it's a tuple
+        if (id >= TUPLE_ID_OFFSET && id < TUPLE_ID_OFFSET + nextTupleId) {
+            uint256 tlen = tupleLen[id];
+            uint256 tidx;
+            if (rawIdx > type(uint256).max / 2) {
+                int256 tActualIdx = int256(tlen) + int256(rawIdx);
+                if (tActualIdx < 0) {
+                    emit VMError("tuple index out of range", pc - 1);
+                    pc = code.length;
+                    stack.push(0);
+                    return;
+                }
+                tidx = uint256(tActualIdx);
+            } else {
+                tidx = rawIdx;
+            }
+            if (tidx >= tlen) {
+                emit VMError("tuple index out of range", pc - 1);
+                pc = code.length;
+                stack.push(0);
+                return;
+            }
+            stack.push(tuples[id][tidx]);
+            return;
+        }
+
         // Check if it's a dict
         if (id >= DICT_ID_OFFSET && id < DICT_ID_OFFSET + nextDictId) {
             if (dictHasKey[id][rawIdx]) {
@@ -778,6 +815,45 @@ contract VM {
 
         // Otherwise, treat as list
         stack.push(lists[id].length);
+    }
+
+    // ==================== Tuples ====================
+
+    function _execMakeTuple() internal {
+        uint16 numElements = _readUint16();
+        uint256 tupleId = TUPLE_ID_OFFSET + nextTupleId++;
+        tupleLen[tupleId] = numElements;
+        // Pop elements (code generator pushes in reverse, so pop gives correct order)
+        for (uint256 i = 0; i < numElements; i++) {
+            tuples[tupleId].push(_pop());
+        }
+        stack.push(tupleId);
+    }
+
+    function _execTupleGet() internal {
+        uint256 rawIdx = _pop();
+        uint256 id = _pop();
+        uint256 len = tupleLen[id];
+        uint256 idx;
+        if (rawIdx > type(uint256).max / 2) {
+            int256 actualIdx = int256(len) + int256(rawIdx);
+            if (actualIdx < 0) {
+                emit VMError("tuple index out of range", pc - 1);
+                pc = code.length;
+                stack.push(0);
+                return;
+            }
+            idx = uint256(actualIdx);
+        } else {
+            idx = rawIdx;
+        }
+        if (idx >= len) {
+            emit VMError("tuple index out of range", pc - 1);
+            pc = code.length;
+            stack.push(0);
+            return;
+        }
+        stack.push(tuples[id][idx]);
     }
 
     // ==================== I/O ====================

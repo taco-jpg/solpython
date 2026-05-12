@@ -346,10 +346,42 @@ contract Parser {
         uint256 ln = _ln(); uint256 col = _col();
         uint256 lhs = _expr();
 
+        // Check for tuple unpacking: a, b, c = expr
+        if (_cur() == TokenType.COMMA) {
+            uint256 ec = 1;
+            exprAux.push(lhs);
+            while (_cur() == TokenType.COMMA && !_end()) {
+                _adv();
+                if (_cur() == TokenType.OP_ASSIGN) break;
+                exprAux.push(_expr());
+                ec++;
+            }
+            uint256 es = exprAux.length - ec;
+            lhs = _emit(NodeType.TUPLE_LITERAL, 0, 0, 0, es, ec, 0, "", ln, col);
+        }
+
         TokenType t = _cur();
         if (t == TokenType.OP_ASSIGN) {
             _adv();
-            return _emit(NodeType.ASSIGN, lhs, _expr(), 0, 0, 0, 0, "", ln, col);
+            uint256 rhs = _expr();
+            // If LHS is tuple unpacking and RHS is not a tuple/call, parse multi-value RHS
+            if (getNodeType(lhs) == NodeType.TUPLE_LITERAL) {
+                uint256 lhsCount = getAuxCount(lhs);
+                // Parse remaining RHS values as a tuple: a, b = 1, 2
+                if (_cur() == TokenType.COMMA) {
+                    uint256 rc = 1;
+                    uint256 rhsLn = _ln(); uint256 rhsCol = _col();
+                    exprAux.push(rhs);
+                    while (_cur() == TokenType.COMMA && !_end()) {
+                        _adv();
+                        exprAux.push(_expr());
+                        rc++;
+                    }
+                    uint256 rs = exprAux.length - rc;
+                    rhs = _emit(NodeType.TUPLE_LITERAL, 0, 0, 0, rs, rc, 0, "", rhsLn, rhsCol);
+                }
+            }
+            return _emit(NodeType.ASSIGN, lhs, rhs, 0, 0, 0, 0, "", ln, col);
         }
         if (_isAugAssign(t)) {
             _adv();
@@ -545,7 +577,27 @@ contract Parser {
         if (t == TokenType.BOOL_TRUE) { _adv(); return _emit(NodeType.BOOL_LITERAL, 0, 0, 0, 0, 0, 1, "", ln, col); }
         if (t == TokenType.BOOL_FALSE) { _adv(); return _emit(NodeType.BOOL_LITERAL, 0, 0, 0, 0, 0, 0, "", ln, col); }
         if (t == TokenType.NONE_VAL) { _adv(); return _emit(NodeType.NONE_LITERAL, 0, 0, 0, 0, 0, 0, "", ln, col); }
-        if (t == TokenType.LPAREN) { _adv(); uint256 e = _expr(); _exp(TokenType.RPAREN); return e; }
+        if (t == TokenType.LPAREN) {
+            _adv();
+            if (_cur() == TokenType.RPAREN) { _adv(); return _emit(NodeType.TUPLE_LITERAL, 0, 0, 0, 0, 0, 0, "", ln, col); }
+            uint256 e = _expr();
+            if (_cur() == TokenType.COMMA) {
+                // Tuple literal: (a, b, c)
+                uint256 ec = 1;
+                exprAux.push(e);
+                while (_cur() == TokenType.COMMA && !_end()) {
+                    _adv();
+                    if (_cur() == TokenType.RPAREN) break; // trailing comma
+                    exprAux.push(_expr());
+                    ec++;
+                }
+                _exp(TokenType.RPAREN);
+                uint256 es = exprAux.length - ec;
+                return _emit(NodeType.TUPLE_LITERAL, 0, 0, 0, es, ec, 0, "", ln, col);
+            }
+            _exp(TokenType.RPAREN);
+            return e;
+        }
         if (t == TokenType.LBRACKET) { return _listLit(); }
         if (t == TokenType.LBRACE) { return _dictOrSetLit(); }
 
