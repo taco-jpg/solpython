@@ -24,12 +24,12 @@ P1-C: Solidity Backend
 - [x] P2-A: Import (11 tests, static linking, compileWithImports)
 - [x] P2-B: VFS (16 tests, virtual file system, compileWithVFS)
 - [x] P2-C: GC (13 tests, reference counting, OP_GC_REF/UNREF/CLEANUP/STATS)
+- [x] P3-A: Yul Backend (33 tests, AST-to-Yul IR transpiler)
 
 ## IN_PROGRESS
-- [ ] P3-A: Yul Backend
+- [ ] P3-B: Self-hosting Bootstrap
 
 ## NEXT_UP
-- [ ] P3-B: Self-hosting Bootstrap
 - [ ] P4: Exception Handling
 - [ ] P5: Venv
 
@@ -37,7 +37,7 @@ P1-C: Solidity Backend
 (None yet)
 
 ## TEST_COUNT
-324 passing / 324 total
+357 passing / 357 total
 
 ## PHASE DETAILS
 

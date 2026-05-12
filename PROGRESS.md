@@ -382,3 +382,36 @@
 
 ### Test Results
 324/324 passing across 17 suites. New tests: list registered, multiple lists, dict registered, set registered, refcount starts at 1, GC stats, no objects for primitives, list in loop, nested list, list reassignment, GC in function, GC multiple types, existing tests unaffected.
+
+## 2026-05-11 — P3-A: Yul Backend
+
+### Changes Made
+
+#### YulBackend.sol — AST to Yul IR transpiler
+- Walks the AST and emits Yul intermediate representation
+- Yul is Solidity's intermediate language that compiles to EVM bytecode
+- Output format: `object "Transpiled" { code { ... } }`
+- Variables: `let x := expr` for first declaration, `x := expr` for reassignment
+- Arithmetic: `add()`, `sub()`, `mul()`, `div()`, `mod()`, `exp()`
+- Comparisons: `eq()`, `lt()`, `gt()`, `iszero()` for NEQ/LTE/GTE
+- Boolean: `and()`, `or()`, `iszero()` for NOT
+- Control flow: `if cond { }`, `for { } cond { } { }` (while→for)
+- For loops: `for { let i := start } lt(i, stop) { i := add(i, step) } { }`
+- Functions: `function name(params) -> result { }` as sub-objects
+- Lists: memory allocation with `mstore`/`mload`
+- Index access: `mload(add(list, mul(add(i, 1), 32)))`
+- `print()` → `log1(0, 0, value)`
+- `len()` → `mload(ptr)`
+
+#### PythonCompiler.sol
+- Added `compileToYul(source)` function
+
+### Files Created
+- `src/phases/YulBackend.sol` — Yul IR transpiler
+- `test/YulBackend.t.sol` — 33 tests
+
+### Files Modified
+- `src/PythonCompiler.sol` — Added YulBackend import and compileToYul
+
+### Test Results
+357/357 passing across 18 suites. New tests: object header, assignment, reassignment, arithmetic (add/sub/mul/div/mod/exp), unary neg, augmented assignment, comparisons (eq/lt/gt/neq/lte/gte), boolean logic (and/or/not), control flow (if/else/while/for), functions, list literal, index access, bool/none literals, compiler integration, empty program, pass statement.

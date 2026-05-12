@@ -7,6 +7,7 @@ import {SemanticAnalyzer} from "./phases/SemanticAnalyzer.sol";
 import {ConstantFolder} from "./optimizer/ConstantFolder.sol";
 import {CodeGenerator} from "./phases/CodeGenerator.sol";
 import {SolidityBackend} from "./phases/SolidityBackend.sol";
+import {YulBackend} from "./phases/YulBackend.sol";
 import {VM} from "./phases/VM.sol";
 import {VFS} from "./vfs/VFS.sol";
 import {NodeType} from "./types/ASTNode.sol";
@@ -74,6 +75,27 @@ contract PythonCompiler {
         }
 
         SolidityBackend backend = new SolidityBackend();
+        return backend.generate(parser);
+    }
+
+    function compileToYul(string memory source) public returns (string memory) {
+        errors = new string[](0);
+
+        Lexer lexer = new Lexer();
+        lexer.tokenize(source);
+
+        Parser parser = new Parser();
+        parser.parse(lexer);
+
+        SemanticAnalyzer analyzer = new SemanticAnalyzer();
+        analyzer.analyze(parser);
+
+        uint256 errCount = analyzer.getErrorCount();
+        for (uint256 i = 0; i < errCount; i++) {
+            errors.push(string(abi.encodePacked("[Semantic] ", analyzer.getError(i))));
+        }
+
+        YulBackend backend = new YulBackend();
         return backend.generate(parser);
     }
 
