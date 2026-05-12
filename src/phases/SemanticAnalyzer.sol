@@ -25,6 +25,10 @@ contract SemanticAnalyzer {
     // Per-node type results
     mapping(uint256 => uint256) private nodeTypes;
 
+    // Unbound local tracking
+    mapping(uint256 => mapping(bytes32 => bool)) private scopeIsLocal; // scope => nameHash => is local (assigned in function)
+    mapping(uint256 => mapping(bytes32 => bool)) private scopeAssigned; // scope => nameHash => assigned before current point
+
     // Errors
     string[] private errors;
 
@@ -105,10 +109,38 @@ contract SemanticAnalyzer {
         }
     }
 
+    // Pre-scan a block for all assigned variables to determine locals
+    function _prescanAssignments(uint256 nodeIdx, uint256 scope) internal {
+        uint256 start = _ai(nodeIdx);
+        uint256 count = _ac(nodeIdx);
+        for (uint256 i = 0; i < count; i++) {
+            uint256 stmtIdx = _aux(start + i);
+            NodeType nt = _nt(stmtIdx);
+            if (nt == NodeType.ASSIGN) {
+                uint256 lhsIdx = _c1(stmtIdx);
+                if (_nt(lhsIdx) == NodeType.IDENTIFIER_REF) {
+                    scopeIsLocal[scope][keccak256(bytes(_sv(lhsIdx)))] = true;
+                }
+            } else if (nt == NodeType.AUG_ASSIGN) {
+                uint256 lhsIdx = _c1(stmtIdx);
+                if (_nt(lhsIdx) == NodeType.IDENTIFIER_REF) {
+                    scopeIsLocal[scope][keccak256(bytes(_sv(lhsIdx)))] = true;
+                }
+            } else if (nt == NodeType.FOR_LOOP) {
+                uint256 varIdx = _c1(stmtIdx);
+                if (_nt(varIdx) == NodeType.IDENTIFIER_REF) {
+                    scopeIsLocal[scope][keccak256(bytes(_sv(varIdx)))] = true;
+                }
+            }
+        }
+    }
+
     function _analyzeAssign(uint256 nodeIdx) internal {
         uint256 rhsType = _analyzeExpr(_c2(nodeIdx));
         uint256 lhsIdx = _c1(nodeIdx);
         if (_nt(lhsIdx) == NodeType.IDENTIFIER_REF) {
+            bytes32 key = keccak256(bytes(_sv(lhsIdx)));
+            scopeAssigned[_currentScope()][key] = true;
             _defineSymbol(_sv(lhsIdx), rhsType);
         }
         nodeTypes[nodeIdx] = rhsType;
@@ -143,8 +175,11 @@ contract SemanticAnalyzer {
             _defineSymbol(_sv(_ea(paramStart + i)), 0);
         }
 
-        // Analyze body
+        // Pre-scan body for assigned variables (determines what's local)
         uint256 bodyIdx = _c2(nodeIdx);
+        if (bodyIdx != 0) _prescanAssignments(bodyIdx, newScope);
+
+        // Analyze body
         if (bodyIdx != 0) _analyzeBlock(bodyIdx);
 
         scopeStack.pop();
@@ -216,6 +251,7 @@ contract SemanticAnalyzer {
         } else if (nt == NodeType.NONE_LITERAL) {
             nodeTypes[nodeIdx] = _getOrCreateType(TypeTag.NONE, 0, 0, 0);
         } else if (nt == NodeType.IDENTIFIER_REF) {
+            _checkUnboundLocal(_sv(nodeIdx), nodeIdx);
             nodeTypes[nodeIdx] = _lookupSymbolAt(_sv(nodeIdx), nodeIdx);
         } else if (nt == NodeType.BINARY_OP) {
             uint256 lt = _analyzeExpr(_c1(nodeIdx));
@@ -378,6 +414,23 @@ contract SemanticAnalyzer {
         symTypes[scope][key] = typeIdx;
         symDefined[scope][key] = true;
         scopeSymbolCounts[scope]++;
+    }
+
+    function _checkUnboundLocal(string memory name, uint256 nodeIdx) internal {
+        bytes32 key = keccak256(bytes(name));
+        uint256 scope = _currentScope();
+        // Walk up scopes to find if this variable is local to any enclosing function
+        while (true) {
+            if (scopeIsLocal[scope][key]) {
+                // Variable is local to this scope — check if it's been assigned yet
+                if (!scopeAssigned[scope][key]) {
+                    _addErrorAt(string(abi.encodePacked("UnboundLocalError: '", name, "' referenced before assignment")), nodeIdx);
+                }
+                return;
+            }
+            if (scope == 0) break;
+            scope = scopeParents[scope];
+        }
     }
 
     function _lookupSymbol(string memory name) internal returns (uint256) {
