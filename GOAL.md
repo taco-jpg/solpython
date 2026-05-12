@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-P1-A: Dict and Set Types
+P1-C: Solidity Backend
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -18,15 +18,16 @@ P1-A: Dict and Set Types
 - [x] Print string output (PRINT_STR opcode)
 - [x] P0-A: Constant Folding and Dead Code Elimination (17 tests)
 - [x] P0-B: Better Error Messages (12 tests, VMError events, getErrors())
+- [x] P1-A: Dict and Set Types (12 dict + 8 set tests)
+- [x] P1-B: String Methods (19 tests, 11 opcodes, method calls, slice syntax)
 
 ## IN_PROGRESS
-- [ ] P1-A: Dict and Set Types
+- [ ] P1-C: Solidity Backend (transpiler)
 
 ## NEXT_UP
-- [ ] P1-B: String Methods
-- [ ] P1-A: Dict and Set Types
-- [ ] P1-B: String Methods
-- [ ] P1-C: Solidity Backend (transpiler)
+- [ ] P2-A: Import (static linking)
+- [ ] P2-B: VFS (virtual file system)
+- [ ] P2-C: GC (reference counting)
 - [ ] P2-A: Import (static linking)
 - [ ] P2-B: VFS (virtual file system)
 - [ ] P2-C: GC (reference counting)
@@ -39,7 +40,7 @@ P1-A: Dict and Set Types
 (None yet)
 
 ## TEST_COUNT
-206 passing / 206 total
+245 passing / 245 total
 
 ## PHASE DETAILS
 

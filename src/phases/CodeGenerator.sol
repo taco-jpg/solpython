@@ -11,6 +11,8 @@ contract CodeGenerator {
     // String table
     bytes private stringTable;
     mapping(bytes32 => uint256) private stringIndex; // hash → index in string table
+    mapping(bytes32 => bool) private stringCached; // hash → whether string is cached
+    uint256 constant STATIC_STR_OFFSET = 2**62;
 
     // Function offsets: name hash → bytecode offset
     mapping(bytes32 => uint256) private funcOffsets;
@@ -99,6 +101,18 @@ contract CodeGenerator {
     uint8 constant OP_SET_ADD = 0x97;
     uint8 constant OP_SET_HAS = 0x98;
     uint8 constant OP_SET_LEN = 0x99;
+
+    uint8 constant OP_STR_LEN = 0xA0;
+    uint8 constant OP_STR_CONCAT = 0xA1;
+    uint8 constant OP_STR_UPPER = 0xA2;
+    uint8 constant OP_STR_LOWER = 0xA3;
+    uint8 constant OP_STR_SLICE = 0xA4;
+    uint8 constant OP_STR_EQ = 0xA5;
+    uint8 constant OP_STR_TO_INT = 0xA6;
+    uint8 constant OP_INT_TO_STR = 0xA7;
+    uint8 constant OP_STR_CONTAINS = 0xA8;
+    uint8 constant OP_STR_SPLIT = 0xA9;
+    uint8 constant OP_STR_CHAR_AT = 0xAA;
 
     uint8 constant OP_HALT = 0xFF;
 
@@ -687,6 +701,21 @@ contract CodeGenerator {
             _genExpr(_c1(nodeIdx)); // dict
             _genExpr(_c2(nodeIdx)); // key
             _emitOp(OP_DICT_GET);
+        } else if (nt == NodeType.SLICE_ACCESS) {
+            _genExpr(_c1(nodeIdx)); // target string
+            // Push start index (0 if default)
+            if (_c2(nodeIdx) == 0) {
+                _genPush(0);
+            } else {
+                _genExpr(_c2(nodeIdx));
+            }
+            // Push end index (0 if default — VM will use string length)
+            if (_c3(nodeIdx) == 0) {
+                _genPush(0);
+            } else {
+                _genExpr(_c3(nodeIdx));
+            }
+            _emitOp(OP_STR_SLICE);
         }
     }
 
@@ -742,11 +771,73 @@ contract CodeGenerator {
             return;
         }
 
-        // Built-in: len
+        // Built-in: len — dispatch based on argument type
         if (keccak256(bytes(name)) == keccak256("len")) {
-            _emitOp(OP_LIST_LEN);
-            // LIST_LEN already pushes result
+            if (argCount == 1) {
+                uint256 argNode = _ea(_ai(nodeIdx));
+                NodeType argType = _nt(argNode);
+                if (argType == NodeType.STRING_LITERAL) {
+                    _emitOp(OP_STR_LEN);
+                } else if (argType == NodeType.DICT_LITERAL || argType == NodeType.DICT_ACCESS) {
+                    _emitOp(OP_DICT_LEN);
+                } else if (argType == NodeType.SET_LITERAL) {
+                    _emitOp(OP_SET_LEN);
+                } else {
+                    // For IDENTIFIER_REF and other types, use LIST_LEN
+                    // VM will handle type checking at runtime
+                    _emitOp(OP_LIST_LEN);
+                }
+            } else {
+                _emitOp(OP_LIST_LEN);
+            }
             return;
+        }
+
+        // Built-in: str — convert int to string
+        if (keccak256(bytes(name)) == keccak256("str") && argCount == 1) {
+            _emitOp(OP_INT_TO_STR);
+            return;
+        }
+
+        // Built-in: int — convert string to int
+        if (keccak256(bytes(name)) == keccak256("int") && argCount == 1) {
+            _emitOp(OP_STR_TO_INT);
+            return;
+        }
+
+        // String methods (called as method calls with object as first arg)
+        if (argCount >= 1) {
+            bytes4 nameHash = bytes4(keccak256(bytes(name)));
+
+            // s.upper() — 1 arg (the string)
+            if (nameHash == bytes4(keccak256("upper")) && argCount == 1) {
+                _emitOp(OP_STR_UPPER);
+                return;
+            }
+
+            // s.lower() — 1 arg (the string)
+            if (nameHash == bytes4(keccak256("lower")) && argCount == 1) {
+                _emitOp(OP_STR_LOWER);
+                return;
+            }
+
+            // s.contains(sub) — 2 args (string, substring)
+            if (nameHash == bytes4(keccak256("contains")) && argCount == 2) {
+                _emitOp(OP_STR_CONTAINS);
+                return;
+            }
+
+            // s.split(delim) — 2 args (string, delimiter)
+            if (nameHash == bytes4(keccak256("split")) && argCount == 2) {
+                _emitOp(OP_STR_SPLIT);
+                return;
+            }
+
+            // s.charAt(i) — 2 args (string, index)
+            if (nameHash == bytes4(keccak256("charAt")) && argCount == 2) {
+                _emitOp(OP_STR_CHAR_AT);
+                return;
+            }
         }
 
         // User function
@@ -839,12 +930,12 @@ contract CodeGenerator {
 
     function _genPushString(string memory s) internal {
         uint256 idx = _getStringIndex(s);
-        _genPush(idx);
+        _genPush(idx + STATIC_STR_OFFSET);
     }
 
     function _getStringIndex(string memory s) internal returns (uint256) {
         bytes32 key = keccak256(bytes(s));
-        if (stringIndex[key] != 0) return stringIndex[key];
+        if (stringCached[key]) return stringIndex[key];
         uint256 idx = stringTable.length;
         bytes memory sb = bytes(s);
         // 2-byte length prefix
@@ -854,6 +945,7 @@ contract CodeGenerator {
             stringTable.push(sb[i]);
         }
         stringIndex[key] = idx;
+        stringCached[key] = true;
         return idx;
     }
 

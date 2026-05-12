@@ -256,6 +256,35 @@ contract SemanticAnalyzer {
             }
         }
 
+        // Check string methods (method calls with object as first arg)
+        if (argCount >= 1) {
+            bytes32 nameHash = keccak256(bytes(name));
+            uint256 stringType = _getOrCreateType(TypeTag.STRING, 0, 0, 0);
+            uint256 boolType = _getOrCreateType(TypeTag.BOOL, 0, 0, 0);
+            uint256 intType = _getOrCreateType(TypeTag.INT, 0, 0, 0);
+
+            // s.upper() → STRING
+            if (nameHash == keccak256("upper") && argCount == 1) {
+                return stringType;
+            }
+            // s.lower() → STRING
+            if (nameHash == keccak256("lower") && argCount == 1) {
+                return stringType;
+            }
+            // s.contains(sub) → BOOL
+            if (nameHash == keccak256("contains") && argCount == 2) {
+                return boolType;
+            }
+            // s.split(delim) → LIST[STRING]
+            if (nameHash == keccak256("split") && argCount == 2) {
+                return _getOrCreateType(TypeTag.LIST, stringType, 0, 0);
+            }
+            // s.charAt(i) → INT
+            if (nameHash == keccak256("charAt") && argCount == 2) {
+                return intType;
+            }
+        }
+
         uint256 funcTypeIdx = _lookupSymbolAt(name, nodeIdx);
         if (funcTypeIdx != NOT_FOUND && typeTags[funcTypeIdx] == TypeTag.FUNCTION) {
             if (auxTypeCounts[funcTypeIdx] != argCount) {

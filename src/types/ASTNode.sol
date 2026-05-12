@@ -44,7 +44,8 @@ enum NodeType {
     DICT_LITERAL,       // {k: v, ...}  exprAux = [k0, v0, k1, v1, ...]
     SET_LITERAL,        // {e, ...}     exprAux = [e0, e1, ...]
     DICT_ACCESS,        // d[key]  child1=dict, child2=key
-    DICT_ASSIGN         // d[key] = val  child1=dict, child2=key, child3=value
+    DICT_ASSIGN,        // d[key] = val  child1=dict, child2=key, child3=value
+    SLICE_ACCESS        // a[i:j]  child1=target, child2=start, child3=end
 }
 
 enum BinaryOpType {

@@ -418,7 +418,21 @@ contract Parser {
 
         if (t == TokenType.INTEGER) { uint256 v = _iv(); _adv(); return _emit(NodeType.INT_LITERAL, 0, 0, 0, 0, 0, v, "", ln, col); }
         if (t == TokenType.FLOAT) { uint256 v = _iv(); _adv(); return _emit(NodeType.FLOAT_LITERAL, 0, 0, 0, 0, 0, v, "", ln, col); }
-        if (t == TokenType.STRING) { string memory v = _lex(); _adv(); return _emit(NodeType.STRING_LITERAL, 0, 0, 0, 0, 0, 0, v, ln, col); }
+        if (t == TokenType.STRING) {
+            string memory raw = _lex();
+            _adv();
+            // Strip surrounding quotes from the lexeme
+            bytes memory rawBytes = bytes(raw);
+            string memory v = "";
+            if (rawBytes.length >= 2) {
+                bytes memory stripped = new bytes(rawBytes.length - 2);
+                for (uint256 i = 1; i < rawBytes.length - 1; i++) {
+                    stripped[i - 1] = rawBytes[i];
+                }
+                v = string(stripped);
+            }
+            return _emit(NodeType.STRING_LITERAL, 0, 0, 0, 0, 0, 0, v, ln, col);
+        }
         if (t == TokenType.BOOL_TRUE) { _adv(); return _emit(NodeType.BOOL_LITERAL, 0, 0, 0, 0, 0, 1, "", ln, col); }
         if (t == TokenType.BOOL_FALSE) { _adv(); return _emit(NodeType.BOOL_LITERAL, 0, 0, 0, 0, 0, 0, "", ln, col); }
         if (t == TokenType.NONE_VAL) { _adv(); return _emit(NodeType.NONE_LITERAL, 0, 0, 0, 0, 0, 0, "", ln, col); }
@@ -431,6 +445,7 @@ contract Parser {
             _adv();
             if (_cur() == TokenType.LPAREN) return _funcCall(name, ln, col);
             if (_cur() == TokenType.LBRACKET) return _idxAccess(_emit(NodeType.IDENTIFIER_REF, 0, 0, 0, 0, 0, 0, name, ln, col));
+            if (_cur() == TokenType.DOT) return _methodCall(name, ln, col);
             return _emit(NodeType.IDENTIFIER_REF, 0, 0, 0, 0, 0, 0, name, ln, col);
         }
 
@@ -454,6 +469,30 @@ contract Parser {
         return node;
     }
 
+    function _methodCall(string memory objName, uint256 ln, uint256 col) internal returns (uint256) {
+        // obj is already parsed as IDENTIFIER_REF — create it and push as first arg
+        uint256 objNode = _emit(NodeType.IDENTIFIER_REF, 0, 0, 0, 0, 0, 0, objName, ln, col);
+        exprAux.push(objNode);
+        uint256 argCnt = 1; // object is first argument
+
+        _exp(TokenType.DOT); // consume the dot
+        uint256 methodLn = _ln(); uint256 methodCol = _col();
+        string memory methodName = _lex();
+        _adv();
+
+        _exp(TokenType.LPAREN);
+        while (_cur() != TokenType.RPAREN && !_end()) {
+            exprAux.push(_expr());
+            argCnt++;
+            if (_cur() == TokenType.COMMA) _adv();
+        }
+        _exp(TokenType.RPAREN);
+        uint256 argStart = exprAux.length - argCnt;
+        uint256 node = _emit(NodeType.FUNC_CALL, 0, 0, 0, argStart, argCnt, 0, methodName, methodLn, methodCol);
+        if (_cur() == TokenType.LBRACKET) return _idxAccess(node);
+        return node;
+    }
+
     function _listLit() internal returns (uint256) {
         uint256 ln = _ln(); uint256 col = _col();
         _exp(TokenType.LBRACKET);
@@ -472,9 +511,39 @@ contract Parser {
         uint256 ln = _ln(); uint256 col = _col();
         while (_cur() == TokenType.LBRACKET) {
             _adv();
-            uint256 idx = _expr();
-            _exp(TokenType.RBRACKET);
-            target = _emit(NodeType.INDEX_ACCESS, target, idx, 0, 0, 0, 0, "", ln, col);
+            // Check for slice syntax: a[i:j] or a[:j] or a[i:] or a[:]
+            if (_cur() == TokenType.COLON) {
+                // a[:...] — start is default (0)
+                _adv(); // consume colon
+                if (_cur() == TokenType.RBRACKET) {
+                    // a[:] — both default
+                    target = _emit(NodeType.SLICE_ACCESS, target, 0, 0, 0, 0, 0, "", ln, col);
+                } else {
+                    // a[:j]
+                    uint256 end = _expr();
+                    target = _emit(NodeType.SLICE_ACCESS, target, 0, end, 0, 0, 0, "", ln, col);
+                }
+                _exp(TokenType.RBRACKET);
+            } else {
+                uint256 idx = _expr();
+                if (_cur() == TokenType.COLON) {
+                    // a[i:j] or a[i:]
+                    _adv(); // consume colon
+                    if (_cur() == TokenType.RBRACKET) {
+                        // a[i:] — end is default (0)
+                        target = _emit(NodeType.SLICE_ACCESS, target, idx, 0, 0, 0, 0, "", ln, col);
+                    } else {
+                        // a[i:j]
+                        uint256 end = _expr();
+                        target = _emit(NodeType.SLICE_ACCESS, target, idx, end, 0, 0, 0, "", ln, col);
+                    }
+                    _exp(TokenType.RBRACKET);
+                } else {
+                    // Normal index access: a[i]
+                    _exp(TokenType.RBRACKET);
+                    target = _emit(NodeType.INDEX_ACCESS, target, idx, 0, 0, 0, 0, "", ln, col);
+                }
+            }
         }
         return target;
     }

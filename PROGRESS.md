@@ -178,3 +178,71 @@
 
 ### Test Results
 177/177 passing across 8 suites. New tests: for loop range variants, list iteration, nested loops, break, continue, bubble sort, print string.
+
+## 2026-05-11 — P1-B: String Methods
+
+### Changes Made
+
+#### String Opcodes (11 new opcodes: 0xA0-0xAA)
+- `OP_STR_LEN` (0xA0) — Get string length
+- `OP_STR_CONCAT` (0xA1) — Concatenate two strings
+- `OP_STR_UPPER` (0xA2) — Convert string to uppercase
+- `OP_STR_LOWER` (0xA3) — Convert string to lowercase
+- `OP_STR_SLICE` (0xA4) — Extract substring (s[start:end])
+- `OP_STR_EQ` (0xA5) — String equality comparison
+- `OP_STR_TO_INT` (0xA6) — Convert string to integer
+- `OP_INT_TO_STR` (0xA7) — Convert integer to string
+- `OP_STR_CONTAINS` (0xA8) — Check if string contains substring
+- `OP_STR_SPLIT` (0xA9) — Split string by delimiter
+- `OP_STR_CHAR_AT` (0xAA) — Get character at index
+
+#### Parser Changes
+- Added `_methodCall()` function for dot notation method calls (s.upper(), s.lower(), etc.)
+- Added slice syntax parsing (a[i:j]) with SLICE_ACCESS node type
+- Strip quotes from string literals in AST (lexer keeps quotes for test compatibility)
+
+#### CodeGenerator Changes
+- Added method call detection in `_genFuncCall()` for upper, lower, contains, split, charAt
+- Added type conversion detection for str() and int()
+- Updated len() dispatch to emit OP_STR_LEN, OP_DICT_LEN, or OP_SET_LEN based on argument type
+- Added SLICE_ACCESS node handling in `_genExpr()`
+
+#### SemanticAnalyzer Changes
+- Added string method recognition in `_analyzeFuncCall()` for type inference
+- upper/lower → STRING, contains → BOOL, split → LIST[STRING], charAt → INT
+
+#### VM Changes
+- Implemented all 11 string opcode execution functions
+- Added runtime string storage (runtimeStrings mapping, RUNTIME_STR_OFFSET = 2^240)
+- Added STATIC_STR_OFFSET = 2^62 for string table IDs
+- Separated ID ranges: Lists (0..2^60), Dicts (2^60..2^61), Sets (2^61..2^62), Static strings (2^62..2^240), Runtime strings (2^240+)
+- Updated OP_ADD to handle string concatenation when operands are string IDs
+- Updated OP_PRINT to detect string IDs and emit PrintString events
+- Updated OP_LIST_LEN to handle all types (list, dict, set, static string, runtime string)
+- Added `_isStringId()` helper for precise string ID detection (avoids false positives with negative numbers)
+- Added StringLib functions: upper, lower, sliceStr, contains, split, intToBytes, bytesToInt
+
+#### StringLib Changes
+- Added upper(), lower(), sliceStr(), contains(), split(), intToBytes(), bytesToInt() functions
+- Fixed `match` reserved keyword issue (renamed to `isMatch`)
+
+#### Critical Bug Fixes
+1. **String table cache bug**: stringIndex mapping used 0 as both "not cached" and "cached at index 0", causing duplicate string entries. Fixed by adding stringCached mapping.
+2. **Negative number string collision**: STATIC_STR_OFFSET (2^62) overlapped with two's complement negative numbers, causing ADD to treat negative numbers as strings. Fixed by using `_isStringId()` with precise range checking.
+3. **String concat operand order**: Stack pop order was reversed, producing wrong concatenation order. Fixed to b (left) + a (right).
+4. **Slice end default**: end==0 should mean "use string length" but wasn't handled. Fixed in `_execStrSlice`.
+
+### Files Modified
+- `src/types/ASTNode.sol` — Added SLICE_ACCESS node type
+- `src/phases/Lexer.sol` — No changes (kept quotes in lexeme)
+- `src/phases/Parser.sol` — Added _methodCall(), updated _idxAccess() for slices, strip quotes from STRING_LITERAL
+- `src/phases/SemanticAnalyzer.sol` — Added string method type inference
+- `src/phases/CodeGenerator.sol` — Added string method dispatch, slice handling, STATIC_STR_OFFSET
+- `src/phases/VM.sol` — Added all string opcodes, runtime string storage, ID range separation
+- `src/libraries/StringLib.sol` — Added string utility functions
+
+### Files Created
+- `test/StringMethods.t.sol` — 19 tests for string operations
+
+### Test Results
+245/245 passing across 13 suites. New tests: str len, upper, lower, contains, split, int/str conversion, slice, concat, equality, combined operations.
