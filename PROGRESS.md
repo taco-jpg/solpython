@@ -348,3 +348,37 @@
 
 ### Test Results
 311/311 passing across 16 suites. New tests: write/read, file exists, overwrite, delete, delete revert, read revert, file count, get path, list files, delete doesn't remove from list, write/delete events, compile with VFS, VFS multiple modules, VFS no imports, VFS missing module.
+
+## 2026-05-11 — P2-C: GC (Reference Counting)
+
+### Changes Made
+
+#### GC Library (`src/gc/RefCounter.sol`)
+- `RefCounter` library with `GCState` struct
+- `alloc()` — allocate new object with refcount 1
+- `incRef()` / `decRef()` — adjust reference counts
+- `decRef()` returns `true` if object freed (refcount hit 0)
+- `getRefcount()`, `isAlive()`, `getObjectType()`, `stats()` getters
+- Object types: OBJ_LIST, OBJ_DICT, OBJ_SET, OBJ_STRING
+
+#### VM GC Integration
+- Added GC state: `gcRefcounts`, `gcLive`, `gcTotalAllocated`, `gcTotalFreed`, `frameObjects`
+- Added opcodes: `OP_GC_REF` (0xB0), `OP_GC_UNREF` (0xB1), `OP_GC_CLEANUP` (0xB2), `OP_GC_STATS` (0xB3)
+- `_gcRegister(id)` — register object with refcount 1 in current frame
+- `_gcIncRef(id)` / `_gcDecRef(id)` — refcount management
+- `_execGcRef` — increment refcount (non-destructive, pushes value back)
+- `_execGcUnref` — decrement refcount, free if 0
+- `_execGcCleanup` — cleanup all objects in current frame
+- `_execGcStats` — emit GCStats event
+- MAKE_LIST, MAKE_DICT, MAKE_SET now register with GC
+- Public getters: `getGCAllocated()`, `getGCFreed()`, `getGCLive()`, `getGCRefcount()`, `getGCLiveStatus()`
+
+### Files Created
+- `src/gc/RefCounter.sol` — GC library
+- `test/GC.t.sol` — 13 tests
+
+### Files Modified
+- `src/phases/VM.sol` — Added GC state, opcodes, and execution functions
+
+### Test Results
+324/324 passing across 17 suites. New tests: list registered, multiple lists, dict registered, set registered, refcount starts at 1, GC stats, no objects for primitives, list in loop, nested list, list reassignment, GC in function, GC multiple types, existing tests unaffected.

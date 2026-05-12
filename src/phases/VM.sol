@@ -41,6 +41,14 @@ contract VM {
     uint256 private codeStart;
     uint256 private pc;
 
+    // GC: reference counting
+    mapping(uint256 => uint256) private gcRefcounts;
+    mapping(uint256 => bool) private gcLive;
+    uint256 private gcTotalAllocated;
+    uint256 private gcTotalFreed;
+    // Track objects per frame for cleanup
+    mapping(uint256 => uint256[]) private frameObjects; // frameIndex => objectIds
+
     // Events
     event Print(uint256[] values);
     event PrintString(string value);
@@ -119,6 +127,12 @@ contract VM {
     uint8 constant OP_STR_SPLIT = 0xA9;
     uint8 constant OP_STR_CHAR_AT = 0xAA;
 
+    // GC opcodes
+    uint8 constant OP_GC_REF = 0xB0;    // Increment refcount of TOS
+    uint8 constant OP_GC_UNREF = 0xB1;  // Decrement refcount of TOS, free if 0
+    uint8 constant OP_GC_CLEANUP = 0xB2; // Cleanup all objects in current frame
+    uint8 constant OP_GC_STATS = 0xB3;  // Emit GC stats as event
+
     uint8 constant OP_HALT = 0xFF;
 
     // ==================== Entry Point ====================
@@ -196,6 +210,10 @@ contract VM {
             else if (op == OP_STR_CONTAINS) _execStrContains();
             else if (op == OP_STR_SPLIT) _execStrSplit();
             else if (op == OP_STR_CHAR_AT) _execStrCharAt();
+            else if (op == OP_GC_REF) _execGcRef();
+            else if (op == OP_GC_UNREF) _execGcUnref();
+            else if (op == OP_GC_CLEANUP) _execGcCleanup();
+            else if (op == OP_GC_STATS) _execGcStats();
             else if (op == OP_HALT) break;
             else {
                 emit VMError("Unknown opcode", pc - 1);
@@ -503,6 +521,7 @@ contract VM {
         for (uint256 i = numElements; i > 0; i--) {
             lists[listId][i - 1] = _pop();
         }
+        _gcRegister(listId);
         stack.push(listId);
     }
 
@@ -619,6 +638,7 @@ contract VM {
             }
             dictValues[dictId][key] = value;
         }
+        _gcRegister(dictId);
         stack.push(dictId);
     }
 
@@ -676,6 +696,7 @@ contract VM {
                 setSize[setId]++;
             }
         }
+        _gcRegister(setId);
         stack.push(setId);
     }
 
@@ -1036,4 +1057,62 @@ contract VM {
     function getPC() public view returns (uint256) { return pc; }
 
     function getStringTableLength() public view returns (uint256) { return stringTable.length; }
+
+    // ==================== GC Functions ====================
+
+    event GCStats(uint256 allocated, uint256 freed, uint256 live);
+
+    function _gcRegister(uint256 id) internal {
+        gcRefcounts[id] = 1;
+        gcLive[id] = true;
+        gcTotalAllocated++;
+        frameObjects[frameCount - 1].push(id);
+    }
+
+    function _gcIncRef(uint256 id) internal {
+        if (id == 0 || !gcLive[id]) return;
+        gcRefcounts[id]++;
+    }
+
+    function _gcDecRef(uint256 id) internal {
+        if (id == 0 || !gcLive[id]) return;
+        gcRefcounts[id]--;
+        if (gcRefcounts[id] == 0) {
+            gcLive[id] = false;
+            gcTotalFreed++;
+        }
+    }
+
+    function _execGcRef() internal {
+        uint256 id = _pop();
+        _gcIncRef(id);
+        stack.push(id); // push back (non-destructive)
+    }
+
+    function _execGcUnref() internal {
+        uint256 id = _pop();
+        _gcDecRef(id);
+    }
+
+    function _execGcCleanup() internal {
+        // Cleanup all objects in the current frame
+        uint256 fi = frameCount - 1;
+        uint256 count = frameObjects[fi].length;
+        for (uint256 i = 0; i < count; i++) {
+            _gcDecRef(frameObjects[fi][i]);
+        }
+        // Clear the frame's object list
+        delete frameObjects[fi];
+    }
+
+    function _execGcStats() internal {
+        emit GCStats(gcTotalAllocated, gcTotalFreed, gcTotalAllocated - gcTotalFreed);
+    }
+
+    // GC public getters
+    function getGCAllocated() public view returns (uint256) { return gcTotalAllocated; }
+    function getGCFreed() public view returns (uint256) { return gcTotalFreed; }
+    function getGCLive() public view returns (uint256) { return gcTotalAllocated - gcTotalFreed; }
+    function getGCRefcount(uint256 id) public view returns (uint256) { return gcRefcounts[id]; }
+    function getGCLiveStatus(uint256 id) public view returns (bool) { return gcLive[id]; }
 }
