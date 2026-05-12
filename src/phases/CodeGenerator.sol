@@ -36,6 +36,10 @@ contract CodeGenerator {
     // For loop temp variable counter (to generate unique names)
     uint256 private _forTempCounter;
 
+    // Class name tracking (to detect instantiation)
+    mapping(bytes32 => bool) private _classNames;
+    mapping(bytes32 => bool) private _classHasInit;
+
     // Parser reference
     Parser private parser;
 
@@ -119,6 +123,12 @@ contract CodeGenerator {
     uint8 constant OP_TRY_END = 0xC1;
     uint8 constant OP_RAISE = 0xC2;
     uint8 constant OP_CATCH = 0xC3;
+
+    uint8 constant OP_MAKE_CLASS = 0xD0;
+    uint8 constant OP_MAKE_INSTANCE = 0xD1;
+    uint8 constant OP_LOAD_ATTR = 0xD2;
+    uint8 constant OP_STORE_ATTR = 0xD3;
+    uint8 constant OP_CALL_METHOD = 0xD4;
 
     uint8 constant OP_HALT = 0xFF;
 
@@ -210,8 +220,16 @@ contract CodeGenerator {
     }
 
     function _genAssign(uint256 nodeIdx) internal {
-        _genExpr(_c2(nodeIdx)); // push RHS value
         uint256 lhsIdx = _c1(nodeIdx);
+        if (_nt(lhsIdx) == NodeType.ATTR_ACCESS) {
+            // obj.attr = val → push obj, push val, STORE_ATTR
+            _genExpr(_c1(lhsIdx)); // push object
+            _genExpr(_c2(nodeIdx)); // push RHS value
+            _emitOp(OP_STORE_ATTR);
+            _emitUint256(uint256(keccak256(bytes(_sv(lhsIdx)))));
+            return;
+        }
+        _genExpr(_c2(nodeIdx)); // push RHS value
         if (_nt(lhsIdx) == NodeType.IDENTIFIER_REF) {
             _genStoreVar(lhsIdx);
         } else if (_nt(lhsIdx) == NodeType.INDEX_ACCESS) {
@@ -658,8 +676,95 @@ contract CodeGenerator {
     }
 
     function _genClassDef(uint256 nodeIdx) internal {
-        // Classes not fully supported — just execute body in current scope
-        if (_c2(nodeIdx) != 0) _genBlock(_c2(nodeIdx));
+        string memory className = _sv(nodeIdx);
+        _classNames[keccak256(bytes(className))] = true;
+
+        // Jump over method bodies (skip during module execution)
+        _emitOp(OP_JUMP);
+        _emitUint32(0); // placeholder
+        uint256 jumpOverOffset = code.length - 4;
+
+        // Process methods in class body (body is in child2)
+        uint256 bodyNode = _c2(nodeIdx);
+        uint256 bodyStart = _ai(bodyNode);
+        uint256 bodyCount = _ac(bodyNode);
+        uint256 methodCount = 0;
+
+        // Track method info for MAKE_CLASS emission
+        uint256[] memory methodHashes = new uint256[](bodyCount);
+        uint256[] memory methodOffsets = new uint256[](bodyCount);
+
+        for (uint256 i = 0; i < bodyCount; i++) {
+            uint256 stmtIdx = _aux(bodyStart + i);
+            if (_nt(stmtIdx) == NodeType.FUNCTION_DEF) {
+                // Record method name hash
+                string memory methodName = _sv(stmtIdx);
+                methodHashes[methodCount] = uint256(keccak256(bytes(methodName)));
+                if (keccak256(bytes(methodName)) == keccak256("__init__")) {
+                    _classHasInit[keccak256(bytes(className))] = true;
+                }
+
+                // Jump over method body
+                _emitOp(OP_JUMP);
+                _emitUint32(0);
+                uint256 methodJumpOffset = code.length - 4;
+
+                // Record method offset
+                methodOffsets[methodCount] = code.length - HEADER_SIZE;
+
+                // Enter method scope
+                currentScope++;
+
+                // Setup frame (self + params)
+                uint256 paramCount = _ac(stmtIdx);
+                _emitOp(OP_SETUP_FRAME);
+                _emitUint16(uint16(paramCount));
+
+                // Store self (slot 0) — already on stack from CALL_METHOD
+                // Store params from stack into local vars
+                for (uint256 j = paramCount; j > 0; j--) {
+                    string memory param = _sv(_ea(_ai(stmtIdx) + j - 1));
+                    uint256 slot = _getVarSlot(param);
+                    _emitOp(OP_STORE_VAR);
+                    _emitByte(1); // frame 1 (local)
+                    _emitByte(uint8(slot));
+                }
+
+                // Generate method body
+                if (_c2(stmtIdx) != 0) _genBlock(_c2(stmtIdx));
+
+                // Implicit return None
+                _genPushNone();
+                _emitOp(OP_RETURN);
+
+                // Exit method scope
+                currentScope--;
+
+                // Backpatch method jump
+                _patchUint32(methodJumpOffset, code.length - methodJumpOffset - 4);
+
+                methodCount++;
+            }
+        }
+
+        // Backpatch outer jump to land here (after method bodies, before MAKE_CLASS)
+        _patchUint32(jumpOverOffset, code.length - jumpOverOffset - 4);
+
+        // Emit MAKE_CLASS: push parent class ID, then (name_hash, func_offset) pairs, then MAKE_CLASS
+        if (_c1(nodeIdx) != 0) {
+            _genExpr(_c1(nodeIdx)); // push parent class ID
+        } else {
+            _genPush(0); // no parent
+        }
+        for (uint256 i = 0; i < methodCount; i++) {
+            _genPush(methodHashes[i]);
+            _genPush(methodOffsets[i]);
+        }
+        _emitOp(OP_MAKE_CLASS);
+        _emitUint16(uint16(methodCount));
+
+        // Store class name
+        _genStoreVarByName(className);
     }
 
     function _genTryStmt(uint256 nodeIdx) internal {
@@ -792,6 +897,46 @@ contract CodeGenerator {
                 _genExpr(_c3(nodeIdx));
             }
             _emitOp(OP_STR_SLICE);
+        } else if (nt == NodeType.ATTR_ACCESS) {
+            _genExpr(_c1(nodeIdx)); // push object
+            _emitOp(OP_LOAD_ATTR);
+            _emitUint256(uint256(keccak256(bytes(_sv(nodeIdx)))));
+        } else if (nt == NodeType.METHOD_CALL) {
+            string memory methodName = _sv(nodeIdx);
+            uint256 mcArgCount = _ac(nodeIdx);
+            bytes4 methodHash = bytes4(keccak256(bytes(methodName)));
+
+            // Check for string methods first
+            if (methodHash == bytes4(keccak256("upper")) && mcArgCount == 0) {
+                _genExpr(_c1(nodeIdx));
+                _emitOp(OP_STR_UPPER);
+            } else if (methodHash == bytes4(keccak256("lower")) && mcArgCount == 0) {
+                _genExpr(_c1(nodeIdx));
+                _emitOp(OP_STR_LOWER);
+            } else if (methodHash == bytes4(keccak256("contains")) && mcArgCount == 1) {
+                _genExpr(_c1(nodeIdx));
+                _genExpr(_ea(_ai(nodeIdx)));
+                _emitOp(OP_STR_CONTAINS);
+            } else if (methodHash == bytes4(keccak256("split")) && mcArgCount == 1) {
+                _genExpr(_c1(nodeIdx));
+                _genExpr(_ea(_ai(nodeIdx)));
+                _emitOp(OP_STR_SPLIT);
+            } else if (methodHash == bytes4(keccak256("charAt")) && mcArgCount == 1) {
+                _genExpr(_c1(nodeIdx));
+                _genExpr(_ea(_ai(nodeIdx)));
+                _emitOp(OP_STR_CHAR_AT);
+            } else {
+                // Object method call
+                _genExpr(_c1(nodeIdx)); // push object
+                _emitOp(OP_LOAD_ATTR);
+                _emitUint256(uint256(keccak256(bytes(methodName))));
+                uint256 mcArgStart = _ai(nodeIdx);
+                for (uint256 i = 0; i < mcArgCount; i++) {
+                    _genExpr(_ea(mcArgStart + i));
+                }
+                _emitOp(OP_CALL_METHOD);
+                _emitUint16(uint16(mcArgCount));
+            }
         }
     }
 
@@ -914,6 +1059,32 @@ contract CodeGenerator {
                 _emitOp(OP_STR_CHAR_AT);
                 return;
             }
+        }
+
+        // Class instantiation
+        if (_classNames[keccak256(bytes(name))]) {
+            // Push class ID (stored as variable)
+            _genLoadVarByName(name);
+            _emitOp(OP_MAKE_INSTANCE);
+            // Now instance_id is on stack
+
+            if (_classHasInit[keccak256(bytes(name))]) {
+                // DUP instance_id (keep for final result)
+                _emitOp(OP_DUP);
+                // LOAD_ATTR __init__ → pushes func_offset and instance_id
+                _emitOp(OP_LOAD_ATTR);
+                _emitUint256(uint256(keccak256("__init__")));
+                // Push arguments
+                for (uint256 i = 0; i < argCount; i++) {
+                    _genExpr(_ea(_ai(nodeIdx) + i));
+                }
+                // Call __init__
+                _emitOp(OP_CALL_METHOD);
+                _emitUint16(uint16(argCount));
+                // POP __init__'s return value (None)
+                _emitOp(OP_POP);
+            }
+            return;
         }
 
         // User function

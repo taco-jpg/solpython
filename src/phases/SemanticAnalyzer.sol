@@ -189,7 +189,9 @@ contract SemanticAnalyzer {
     }
 
     function _analyzeClassDef(uint256 nodeIdx) internal {
-        _defineSymbol(_sv(nodeIdx), 0);
+        // Create a type for the class so typeTags index is valid
+        uint256 classTypeIdx = _createType(TypeTag.INT, 0, 0, 0);
+        _defineSymbol(_sv(nodeIdx), classTypeIdx);
         uint256 newScope = scopeParents.length;
         scopeParents.push(_currentScope());
         scopeSymbolCounts.push(0);
@@ -241,6 +243,15 @@ contract SemanticAnalyzer {
             _analyzeExpr(_c2(nodeIdx));
             if (targetType != 0 && typeTags[targetType] == TypeTag.LIST) {
                 nodeTypes[nodeIdx] = innerTypes[targetType];
+            }
+        } else if (nt == NodeType.ATTR_ACCESS) {
+            _analyzeExpr(_c1(nodeIdx));
+        } else if (nt == NodeType.METHOD_CALL) {
+            _analyzeExpr(_c1(nodeIdx));
+            uint256 mcArgStart = _ai(nodeIdx);
+            uint256 mcArgCount = _ac(nodeIdx);
+            for (uint256 i = 0; i < mcArgCount; i++) {
+                _analyzeExpr(_ea(mcArgStart + i));
             }
         }
 

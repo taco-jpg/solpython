@@ -28,6 +28,7 @@ P1-C: Solidity Backend
 - [x] P3-B: Self-hosting Bootstrap (6 tests, mini Python lexer compiled by Solidity compiler)
 - [x] P4: Exception Handling (15 tests, try/except/finally/raise)
 - [x] P5: Venv (17 tests, compilation environment with VFS, settings, module paths)
+- [x] Class System (15 tests, instantiation, self, methods, inheritance)
 
 ## IN_PROGRESS
 (None — all features complete)
@@ -39,7 +40,7 @@ P1-C: Solidity Backend
 (None yet)
 
 ## TEST_COUNT
-395 passing / 395 total
+428 passing / 428 total
 
 ## PHASE DETAILS
 

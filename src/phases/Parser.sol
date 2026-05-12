@@ -546,7 +546,10 @@ contract Parser {
             _adv();
             if (_cur() == TokenType.LPAREN) return _funcCall(name, ln, col);
             if (_cur() == TokenType.LBRACKET) return _idxAccess(_emit(NodeType.IDENTIFIER_REF, 0, 0, 0, 0, 0, 0, name, ln, col));
-            if (_cur() == TokenType.DOT) return _methodCall(name, ln, col);
+            if (_cur() == TokenType.DOT) {
+                uint256 objNode = _emit(NodeType.IDENTIFIER_REF, 0, 0, 0, 0, 0, 0, name, ln, col);
+                return _dotAccess(objNode);
+            }
             return _emit(NodeType.IDENTIFIER_REF, 0, 0, 0, 0, 0, 0, name, ln, col);
         }
 
@@ -592,6 +595,41 @@ contract Parser {
         uint256 node = _emit(NodeType.FUNC_CALL, 0, 0, 0, argStart, argCnt, 0, methodName, methodLn, methodCol);
         if (_cur() == TokenType.LBRACKET) return _idxAccess(node);
         return node;
+    }
+
+    function _dotAccess(uint256 objNode) internal returns (uint256) {
+        // obj is already parsed — handle .attr or .method(args)
+        _exp(TokenType.DOT); // consume the dot
+        uint256 attrLn = _ln(); uint256 attrCol = _col();
+        string memory attrName = _lex();
+        _adv();
+
+        uint256 result;
+        if (_cur() == TokenType.LPAREN) {
+            // Method call: obj.method(args)
+            _exp(TokenType.LPAREN);
+            uint256 argCnt = 0;
+            while (_cur() != TokenType.RPAREN && !_end()) {
+                exprAux.push(_expr());
+                argCnt++;
+                if (_cur() == TokenType.COMMA) _adv();
+            }
+            _exp(TokenType.RPAREN);
+            uint256 argStart = exprAux.length - argCnt;
+            result = _emit(NodeType.METHOD_CALL, objNode, 0, 0, argStart, argCnt, 0, attrName, attrLn, attrCol);
+        } else {
+            // Attribute access: obj.attr
+            result = _emit(NodeType.ATTR_ACCESS, objNode, 0, 0, 0, 0, 0, attrName, attrLn, attrCol);
+        }
+
+        // Handle chaining: obj.attr.nested or obj.method().attr
+        if (_cur() == TokenType.DOT) {
+            return _dotAccess(result);
+        }
+        if (_cur() == TokenType.LBRACKET) {
+            return _idxAccess(result);
+        }
+        return result;
     }
 
     function _listLit() internal returns (uint256) {

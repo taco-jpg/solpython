@@ -50,7 +50,12 @@ enum NodeType {
     SET_LITERAL,        // {e, ...}     exprAux = [e0, e1, ...]
     DICT_ACCESS,        // d[key]  child1=dict, child2=key
     DICT_ASSIGN,        // d[key] = val  child1=dict, child2=key, child3=value
-    SLICE_ACCESS        // a[i:j]  child1=target, child2=start, child3=end
+    SLICE_ACCESS,       // a[i:j]  child1=target, child2=start, child3=end
+
+    // Class system
+    ATTR_ACCESS,        // obj.attr  child1=object, strValue=attribute_name
+    METHOD_CALL,        // obj.method(args)  child1=object, strValue=method_name, exprAux=args
+    SELF_ASSIGN         // self.x = val  strValue=attr_name, child1=value (inside method body)
 }
 
 enum BinaryOpType {

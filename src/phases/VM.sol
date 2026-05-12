@@ -16,6 +16,8 @@ contract VM {
     // Return stack (for function calls)
     uint256[] private returnPC;
     uint256[] private returnFrame;
+    uint256[] private returnStackDepth;
+    bool[] private returnIsMethodCall;
 
     // Lists: listId => elements (IDs 0 to 2^60 - 1)
     mapping(uint256 => uint256[]) private lists;
@@ -146,6 +148,13 @@ contract VM {
     uint8 constant OP_RAISE = 0xC2;      // Raise exception
     uint8 constant OP_CATCH = 0xC3;      // Catch exception (store in variable)
 
+    // Class system opcodes
+    uint8 constant OP_MAKE_CLASS = 0xD0;
+    uint8 constant OP_MAKE_INSTANCE = 0xD1;
+    uint8 constant OP_LOAD_ATTR = 0xD2;
+    uint8 constant OP_STORE_ATTR = 0xD3;
+    uint8 constant OP_CALL_METHOD = 0xD4;
+
     uint8 constant OP_HALT = 0xFF;
 
     // ==================== Entry Point ====================
@@ -231,6 +240,11 @@ contract VM {
             else if (op == OP_TRY_END) _execTryEnd();
             else if (op == OP_RAISE) _execRaise();
             else if (op == OP_CATCH) _execCatch();
+            else if (op == OP_MAKE_CLASS) _execMakeClass();
+            else if (op == OP_MAKE_INSTANCE) _execMakeInstance();
+            else if (op == OP_LOAD_ATTR) _execLoadAttr();
+            else if (op == OP_STORE_ATTR) _execStoreAttr();
+            else if (op == OP_CALL_METHOD) _execCallMethod();
             else if (op == OP_HALT) break;
             else {
                 emit VMError("Unknown opcode", pc - 1);
@@ -544,6 +558,8 @@ contract VM {
         // Save return state
         returnPC.push(pc);
         returnFrame.push(frameCount - 1);
+        returnStackDepth.push(type(uint256).max); // sentinel: no stack restore
+        returnIsMethodCall.push(false);
 
         // Create new frame
         frameCount++;
@@ -568,10 +584,23 @@ contract VM {
         returnPC.pop();
         returnFrame.pop();
 
+        // For method calls: clean up self+args pushed by CALL_METHOD
+        bool isMethod = returnIsMethodCall[returnIsMethodCall.length - 1];
+        uint256 savedDepth = returnStackDepth[returnStackDepth.length - 1];
+        returnStackDepth.pop();
+        returnIsMethodCall.pop();
+
         emit Trace(retPC, 0x61, retVal);
 
         // Push return value
         stack.push(retVal);
+
+        // For method calls, restore stack to pre-call depth
+        if (isMethod && savedDepth != type(uint256).max) {
+            while (stack.length > savedDepth + 1) {
+                stack.pop();
+            }
+        }
     }
 
     function _execSetupFrame() internal {
@@ -1272,4 +1301,130 @@ contract VM {
     function isExceptionActive() public view returns (bool) { return exceptionActive; }
     function getExceptionValue() public view returns (uint256) { return exceptionValue; }
     function getTryStackDepth() public view returns (uint256) { return tryStack.length; }
+
+    // ==================== Class System ====================
+
+    uint256 constant CLASS_ID_OFFSET = 2**63;
+    uint256 constant INSTANCE_ID_OFFSET = 2**64;
+
+    // Class descriptors
+    mapping(uint256 => mapping(uint256 => uint256)) private classMethods; // classId => method_name_hash => func_offset
+    mapping(uint256 => uint256) private classNameStr; // classId => string index of class name
+    mapping(uint256 => uint256) private classParent; // classId => parent classId (0 if none)
+    uint256 private nextClassId;
+
+    // Instance storage
+    mapping(uint256 => mapping(uint256 => uint256)) private instanceAttrs; // instanceId => attr_name_hash => value
+    mapping(uint256 => mapping(uint256 => bool)) private instanceHasAttr; // instanceId => attr_name_hash => exists
+    mapping(uint256 => uint256) private instanceClass; // instanceId => classId
+    uint256 private nextInstanceId;
+
+    function _execMakeClass() internal {
+        uint16 methodCount = _readUint16();
+        uint256 classId = CLASS_ID_OFFSET + nextClassId++;
+
+        // Stack layout: [parent, hash0, offset0, hash1, offset1, ...]
+        // Pop pairs first (top of stack), then parent (bottom)
+        for (uint256 i = 0; i < methodCount; i++) {
+            uint256 funcOffset = _pop();
+            uint256 nameHash = _pop();
+            classMethods[classId][nameHash] = funcOffset;
+        }
+        uint256 parentId = _pop(); // 0 if no parent
+
+        classParent[classId] = parentId;
+        _gcRegister(classId);
+        stack.push(classId);
+    }
+
+    function _execMakeInstance() internal {
+        uint256 classId = _pop();
+        uint256 instanceId = INSTANCE_ID_OFFSET + nextInstanceId++;
+        instanceClass[instanceId] = classId;
+        _gcRegister(instanceId);
+        stack.push(instanceId);
+    }
+
+    function _execLoadAttr() internal {
+        uint256 nameHash = _readUint256();
+        uint256 instanceId = _pop();
+
+        // Look up attribute in instance
+        if (instanceHasAttr[instanceId][nameHash]) {
+            stack.push(instanceAttrs[instanceId][nameHash]);
+            return;
+        }
+
+        // Look up method in class hierarchy
+        uint256 classId = instanceClass[instanceId];
+        uint256 methodOffset = classMethods[classId][nameHash];
+        uint256 pid = classParent[classId];
+        while (methodOffset == 0 && pid != 0) {
+            methodOffset = classMethods[pid][nameHash];
+            pid = classParent[pid];
+        }
+        if (methodOffset != 0) {
+            // Push method offset AND instance_id for CALL_METHOD
+            stack.push(methodOffset);
+            stack.push(instanceId);
+            return;
+        }
+
+        stack.push(type(uint256).max); // NONE
+    }
+
+    function _execStoreAttr() internal {
+        uint256 nameHash = _readUint256();
+        uint256 value = _pop();
+        uint256 instanceId = _pop();
+        instanceAttrs[instanceId][nameHash] = value;
+        instanceHasAttr[instanceId][nameHash] = true;
+    }
+
+    function _execCallMethod() internal {
+        uint16 numArgs = _readUint16();
+
+        // Pop arguments
+        uint256[] memory args = new uint256[](numArgs);
+        for (uint256 i = numArgs; i > 0; i--) {
+            args[i - 1] = _pop();
+        }
+
+        // Pop instance_id and func_offset (from LOAD_ATTR)
+        uint256 instanceId = _pop();
+        uint256 funcOffset = _pop();
+
+        // Save return state
+        returnPC.push(pc);
+        returnFrame.push(frameCount - 1);
+        returnStackDepth.push(stack.length);
+        returnIsMethodCall.push(true);
+
+        // Create new frame
+        frameCount++;
+        frameVarCounts.push(0);
+
+        // Push self (instance) as first arg
+        stack.push(instanceId);
+
+        // Push remaining arguments
+        for (uint256 i = 0; i < numArgs; i++) {
+            stack.push(args[i]);
+        }
+
+        pc = funcOffset;
+    }
+
+    // Class system public getters
+    function getClassMethod(uint256 classId, uint256 methodHash) public view returns (uint256) {
+        return classMethods[classId][methodHash];
+    }
+
+    function getInstanceAttr(uint256 instanceId, uint256 attrHash) public view returns (uint256) {
+        return instanceAttrs[instanceId][attrHash];
+    }
+
+    function getInstanceClass(uint256 instanceId) public view returns (uint256) {
+        return instanceClass[instanceId];
+    }
 }
