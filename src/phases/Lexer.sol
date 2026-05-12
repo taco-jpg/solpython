@@ -240,6 +240,10 @@ contract Lexer {
         if (hash == keccak256("is")) return TokenType.KW_IS;
         if (hash == keccak256("lambda")) return TokenType.KW_LAMBDA;
         if (hash == keccak256("print")) return TokenType.KW_PRINT;
+        if (hash == keccak256("try")) return TokenType.KW_TRY;
+        if (hash == keccak256("except")) return TokenType.KW_EXCEPT;
+        if (hash == keccak256("finally")) return TokenType.KW_FINALLY;
+        if (hash == keccak256("raise")) return TokenType.KW_RAISE;
         return TokenType.IDENTIFIER;
     }
 

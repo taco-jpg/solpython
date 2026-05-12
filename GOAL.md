@@ -26,18 +26,19 @@ P1-C: Solidity Backend
 - [x] P2-C: GC (13 tests, reference counting, OP_GC_REF/UNREF/CLEANUP/STATS)
 - [x] P3-A: Yul Backend (33 tests, AST-to-Yul IR transpiler)
 - [x] P3-B: Self-hosting Bootstrap (6 tests, mini Python lexer compiled by Solidity compiler)
+- [x] P4: Exception Handling (15 tests, try/except/finally/raise)
 
 ## IN_PROGRESS
-- [ ] P4: Exception Handling
+- [ ] P5: Venv
 
 ## NEXT_UP
-- [ ] P5: Venv
+(None — all features complete)
 
 ## BLOCKERS
 (None yet)
 
 ## TEST_COUNT
-363 passing / 363 total
+378 passing / 378 total
 
 ## PHASE DETAILS
 

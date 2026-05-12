@@ -153,6 +153,12 @@ contract YulBackend {
         } else if (nt == NodeType.IMPORT_STMT) {
             _writeIndent();
             _writeln(string.concat("// import ", _sv(nodeIdx)));
+        } else if (nt == NodeType.TRY_STMT) {
+            _writeIndent();
+            _writeln("// try/except not supported in Yul backend");
+        } else if (nt == NodeType.RAISE_STMT) {
+            _writeIndent();
+            _writeln("revert(0, 0)");
         }
     }
 

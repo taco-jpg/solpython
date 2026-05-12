@@ -89,6 +89,17 @@ contract SemanticAnalyzer {
             _analyzeClassDef(nodeIdx);
         } else if (nt == NodeType.IMPORT_STMT) {
             // No-op: imports resolved at compiler level
+        } else if (nt == NodeType.TRY_STMT) {
+            if (_c1(nodeIdx) != 0) _analyzeBlock(_c1(nodeIdx));
+            uint256 es = _ai(nodeIdx);
+            uint256 ec = _ac(nodeIdx);
+            for (uint256 i = 0; i < ec; i++) {
+                uint256 excIdx = _ea(es + i);
+                if (_c2(excIdx) != 0) _analyzeBlock(_c2(excIdx));
+            }
+            if (_c2(nodeIdx) != 0) _analyzeBlock(_c2(nodeIdx));
+        } else if (nt == NodeType.RAISE_STMT) {
+            if (_c1(nodeIdx) != 0) _analyzeExpr(_c1(nodeIdx));
         } else if (nt == NodeType.EXPR_STMT) {
             _analyzeExpr(_c1(nodeIdx));
         }

@@ -450,3 +450,54 @@
 
 ### Test Results
 363/363 passing across 19 suites. New tests: mini lexer compiles, mini lexer tokenizes simple input, mini lexer tokenizes arithmetic, mini lexer token count, self-hosting token count match, bootstrap via VFS.
+
+## 2026-05-11 — P4: Exception Handling
+
+### Changes Made
+
+#### Token/AST Changes
+- Added `KW_TRY`, `KW_EXCEPT`, `KW_FINALLY`, `KW_RAISE` to `TokenType` enum
+- Added `TRY_STMT`, `EXCEPT_BRANCH`, `FINALLY_BRANCH`, `RAISE_STMT` to `NodeType` enum
+
+#### Lexer Changes
+- Added keyword recognition for `try`, `except`, `finally`, `raise`
+
+#### Parser Changes
+- Added `_tryStmt()` for `try: ... except: ... finally: ...` syntax
+- Added `_raiseStmt()` for `raise [expr]` syntax
+- TRY_STMT: child1=try body, child2=finally branch, auxIndex/auxCount=except branches
+- EXCEPT_BRANCH: child1=exception type (0 if bare except), child2=body
+- RAISE_STMT: child1=exception expression (0 if bare raise)
+
+#### CodeGenerator Changes
+- Added `OP_TRY_BEGIN` (0xC0), `OP_TRY_END` (0xC1), `OP_RAISE` (0xC2), `OP_CATCH` (0xC3)
+- `_genTryStmt()` — emits TRY_BEGIN with handler PC, try body, TRY_END, JUMP over handlers, except handlers with CATCH, finally body
+- `_genRaiseStmt()` — emits expression then RAISE opcode
+
+#### VM Changes
+- Added exception stack (`tryStack`), `exceptionActive`, `exceptionValue`
+- `_execTryBegin()` — reads 4-byte handler PC, pushes onto try stack
+- `_execTryEnd()` — pops try stack
+- `_execRaise()` — pops value, sets exception state, jumps to handler or halts
+- `_execCatch()` — pushes exception value onto stack, clears exception state
+- Public getters: `isExceptionActive()`, `getExceptionValue()`, `getTryStackDepth()`
+
+#### SemanticAnalyzer / SolidityBackend / YulBackend
+- Added TRY_STMT, RAISE_STMT handling (analyze body/handlers, emit comments/revert)
+
+### Files Created
+- `test/Exception.t.sol` — 15 tests
+
+### Files Modified
+- `src/types/Token.sol` — Added KW_TRY, KW_EXCEPT, KW_FINALLY, KW_RAISE
+- `src/types/ASTNode.sol` — Added TRY_STMT, EXCEPT_BRANCH, FINALLY_BRANCH, RAISE_STMT
+- `src/phases/Lexer.sol` — Added try/except/finally/raise keywords
+- `src/phases/Parser.sol` — Added _tryStmt(), _raiseStmt()
+- `src/phases/CodeGenerator.sol` — Added exception opcodes and code generation
+- `src/phases/VM.sol` — Added exception stack and execution functions
+- `src/phases/SemanticAnalyzer.sol` — Added TRY_STMT/RAISE_STMT analysis
+- `src/phases/SolidityBackend.sol` — Added TRY_STMT/RAISE_STMT handling
+- `src/phases/YulBackend.sol` — Added TRY_STMT/RAISE_STMT handling
+
+### Test Results
+378/378 passing across 20 suites. New tests: try/except parsed, try/except/finally parsed, raise parsed, raise with value parsed, try/except basic, raise in try, finally executes, raise with finally, exception value, try without except, compile and execute, try/except/finally/raise keywords.

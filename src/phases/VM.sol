@@ -49,6 +49,11 @@ contract VM {
     // Track objects per frame for cleanup
     mapping(uint256 => uint256[]) private frameObjects; // frameIndex => objectIds
 
+    // Exception handling
+    uint256[] private tryStack;       // stack of handler PCs
+    bool private exceptionActive;
+    uint256 private exceptionValue;
+
     // Events
     event Print(uint256[] values);
     event PrintString(string value);
@@ -133,6 +138,12 @@ contract VM {
     uint8 constant OP_GC_CLEANUP = 0xB2; // Cleanup all objects in current frame
     uint8 constant OP_GC_STATS = 0xB3;  // Emit GC stats as event
 
+    // Exception handling opcodes
+    uint8 constant OP_TRY_BEGIN = 0xC0;  // Push try context (handler PC)
+    uint8 constant OP_TRY_END = 0xC1;    // Pop try context
+    uint8 constant OP_RAISE = 0xC2;      // Raise exception
+    uint8 constant OP_CATCH = 0xC3;      // Catch exception (store in variable)
+
     uint8 constant OP_HALT = 0xFF;
 
     // ==================== Entry Point ====================
@@ -214,6 +225,10 @@ contract VM {
             else if (op == OP_GC_UNREF) _execGcUnref();
             else if (op == OP_GC_CLEANUP) _execGcCleanup();
             else if (op == OP_GC_STATS) _execGcStats();
+            else if (op == OP_TRY_BEGIN) _execTryBegin();
+            else if (op == OP_TRY_END) _execTryEnd();
+            else if (op == OP_RAISE) _execRaise();
+            else if (op == OP_CATCH) _execCatch();
             else if (op == OP_HALT) break;
             else {
                 emit VMError("Unknown opcode", pc - 1);
@@ -1115,4 +1130,45 @@ contract VM {
     function getGCLive() public view returns (uint256) { return gcTotalAllocated - gcTotalFreed; }
     function getGCRefcount(uint256 id) public view returns (uint256) { return gcRefcounts[id]; }
     function getGCLiveStatus(uint256 id) public view returns (bool) { return gcLive[id]; }
+
+    // ==================== Exception Handling ====================
+
+    function _execTryBegin() internal {
+        // Read 4-byte handler PC offset
+        uint256 handlerPC = _readUint32();
+        tryStack.push(handlerPC);
+    }
+
+    function _execTryEnd() internal {
+        if (tryStack.length > 0) {
+            tryStack.pop();
+        }
+    }
+
+    function _execRaise() internal {
+        uint256 val = _pop();
+        exceptionValue = val;
+        exceptionActive = true;
+
+        if (tryStack.length > 0) {
+            uint256 handlerPC = tryStack[tryStack.length - 1];
+            tryStack.pop();
+            pc = handlerPC;
+        } else {
+            emit VMError("Unhandled exception", pc - 1);
+            pc = code.length; // halt
+        }
+    }
+
+    function _execCatch() internal {
+        // Push the exception value onto the stack and clear exception state
+        stack.push(exceptionValue);
+        exceptionActive = false;
+        exceptionValue = 0;
+    }
+
+    // Exception public getters
+    function isExceptionActive() public view returns (bool) { return exceptionActive; }
+    function getExceptionValue() public view returns (uint256) { return exceptionValue; }
+    function getTryStackDepth() public view returns (uint256) { return tryStack.length; }
 }

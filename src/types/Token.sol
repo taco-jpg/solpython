@@ -34,6 +34,10 @@ enum TokenType {
     KW_IS,
     KW_LAMBDA,
     KW_PRINT,
+    KW_TRY,
+    KW_EXCEPT,
+    KW_FINALLY,
+    KW_RAISE,
 
     // Arithmetic operators
     OP_PLUS,       // +

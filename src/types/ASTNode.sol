@@ -21,6 +21,10 @@ enum NodeType {
     EXPR_STMT,          // expression as statement (e.g. function call)
     CLASS_DEF,          // class Name: body
     IMPORT_STMT,        // import module  or  from module import name [, name2, ...]
+    TRY_STMT,           // try: body except: handler [finally: cleanup]
+    EXCEPT_BRANCH,      // except [Type]: body
+    FINALLY_BRANCH,     // finally: body
+    RAISE_STMT,         // raise [expr]
 
     // Expressions
     BINARY_OP,          // a + b, a - b, etc

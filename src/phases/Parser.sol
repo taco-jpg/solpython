@@ -87,6 +87,8 @@ contract Parser {
         if (t == TokenType.KW_CLASS) return _classDef();
         if (t == TokenType.KW_IMPORT) return _importStmt();
         if (t == TokenType.KW_FROM) return _fromImportStmt();
+        if (t == TokenType.KW_TRY) return _tryStmt();
+        if (t == TokenType.KW_RAISE) return _raiseStmt();
         return _assignOrExpr();
     }
 
@@ -273,6 +275,71 @@ contract Parser {
 
         // IMPORT_STMT: strValue = module name, auxIndex = names start, auxCount = name count
         return _emit(NodeType.IMPORT_STMT, 0, 0, 0, ns, nc, 0, moduleName, ln, col);
+    }
+
+    function _tryStmt() internal returns (uint256) {
+        uint256 ln = _ln(); uint256 col = _col();
+        _adv(); // skip 'try'
+        _skipNL();
+        _exp(TokenType.COLON);
+
+        // Try body
+        uint256 tryLvl = _bodyPush();
+        uint256 tryBody = _suite();
+        _bodyPopTo(tryLvl, tryBody);
+
+        // Except branches
+        uint256 exceptStart = exprAux.length;
+        uint256 exceptCount = 0;
+        while (_cur() == TokenType.KW_EXCEPT) {
+            _adv(); // skip 'except'
+            uint256 eln = _ln(); uint256 ecol = _col();
+
+            // Optional exception type
+            uint256 excType = 0;
+            if (_cur() == TokenType.IDENTIFIER) {
+                string memory typeName = _lex();
+                _adv();
+                excType = _emit(NodeType.IDENTIFIER_REF, 0, 0, 0, 0, 0, 0, typeName, _ln(), _col());
+            }
+
+            _skipNL();
+            _exp(TokenType.COLON);
+
+            uint256 excLvl = _bodyPush();
+            uint256 excBody = _suite();
+            _bodyPopTo(excLvl, excBody);
+
+            exprAux.push(_emit(NodeType.EXCEPT_BRANCH, excType, excBody, 0, 0, 0, 0, "", eln, ecol));
+            exceptCount++;
+        }
+
+        // Finally branch
+        uint256 finallyBranch = 0;
+        if (_cur() == TokenType.KW_FINALLY) {
+            _adv(); // skip 'finally'
+            uint256 fln = _ln(); uint256 fcol = _col();
+            _skipNL();
+            _exp(TokenType.COLON);
+            uint256 finLvl = _bodyPush();
+            uint256 finBody = _suite();
+            _bodyPopTo(finLvl, finBody);
+            finallyBranch = _emit(NodeType.FINALLY_BRANCH, finBody, 0, 0, 0, 0, 0, "", fln, fcol);
+        }
+
+        return _emit(NodeType.TRY_STMT, tryBody, finallyBranch, 0, exceptStart, exceptCount, 0, "", ln, col);
+    }
+
+    function _raiseStmt() internal returns (uint256) {
+        uint256 ln = _ln(); uint256 col = _col();
+        _adv(); // skip 'raise'
+
+        uint256 excExpr = 0;
+        if (_cur() != TokenType.NEWLINE && _cur() != TokenType.EOF) {
+            excExpr = _expr();
+        }
+
+        return _emit(NodeType.RAISE_STMT, excExpr, 0, 0, 0, 0, 0, "", ln, col);
     }
 
     function _assignOrExpr() internal returns (uint256) {
