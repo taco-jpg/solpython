@@ -415,3 +415,38 @@
 
 ### Test Results
 357/357 passing across 18 suites. New tests: object header, assignment, reassignment, arithmetic (add/sub/mul/div/mod/exp), unary neg, augmented assignment, comparisons (eq/lt/gt/neq/lte/gte), boolean logic (and/or/not), control flow (if/else/while/for), functions, list literal, index access, bool/none literals, compiler integration, empty program, pass statement.
+
+## 2026-05-11 — P3-B: Self-hosting Bootstrap
+
+### Changes Made
+
+#### Python Lexer (`src/bootstrap/lexer.py`)
+- Full Python lexer written in the subset of Python the compiler supports
+- Handles: integers, identifiers, keywords (all 20+), string literals, all operators (single and multi-char), all delimiters, indentation (INDENT/DEDENT), comments, newlines
+- Token type constants match `Token.sol` enum order
+- Helper functions: `is_alpha()`, `is_digit()`, `is_alnum()`, `keyword_type()`, `token_type_name()`
+- Too large for EVM execution (~300 lines) — used for documentation and future off-chain use
+
+#### Mini Python Lexer (`src/bootstrap/mini_lexer.py`)
+- Minimal lexer written in compiler-compatible Python subset
+- Handles: integers, identifiers, +, -, *, /, =, (, ), [, ], ,, :, newline
+- Small enough to compile and execute within EVM gas limits
+- Successfully compiled by the Solidity compiler and executed on test inputs
+
+#### Self-hosting Verification
+- Mini lexer compiled by Solidity compiler → produces valid bytecode
+- Mini lexer executed on "x = 42" → produces correct token types (6, 34, 0, 58)
+- Mini lexer executed on "x + y" → produces correct token types (6, 27, 6, 58)
+- Token count matches expected values
+- Full pipeline: source → Lexer → Parser → SemanticAnalyzer → CodeGenerator → VM → execute Python lexer
+
+#### foundry.toml
+- Added `fs_permissions` for reading from `./src` directory
+
+### Files Created
+- `src/bootstrap/lexer.py` — Full Python lexer (documentation/off-chain)
+- `src/bootstrap/mini_lexer.py` — Minimal lexer for EVM execution
+- `test/Bootstrap.t.sol` — 6 tests
+
+### Test Results
+363/363 passing across 19 suites. New tests: mini lexer compiles, mini lexer tokenizes simple input, mini lexer tokenizes arithmetic, mini lexer token count, self-hosting token count match, bootstrap via VFS.
