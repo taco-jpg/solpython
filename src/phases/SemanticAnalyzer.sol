@@ -201,7 +201,7 @@ contract SemanticAnalyzer {
         } else if (nt == NodeType.NONE_LITERAL) {
             nodeTypes[nodeIdx] = _getOrCreateType(TypeTag.NONE, 0, 0, 0);
         } else if (nt == NodeType.IDENTIFIER_REF) {
-            nodeTypes[nodeIdx] = _lookupSymbol(_sv(nodeIdx));
+            nodeTypes[nodeIdx] = _lookupSymbolAt(_sv(nodeIdx), nodeIdx);
         } else if (nt == NodeType.BINARY_OP) {
             uint256 lt = _analyzeExpr(_c1(nodeIdx));
             uint256 rt = _analyzeExpr(_c2(nodeIdx));
@@ -256,10 +256,13 @@ contract SemanticAnalyzer {
             }
         }
 
-        uint256 funcTypeIdx = _lookupSymbol(name);
-        if (funcTypeIdx != 0 && typeTags[funcTypeIdx] == TypeTag.FUNCTION) {
+        uint256 funcTypeIdx = _lookupSymbolAt(name, nodeIdx);
+        if (funcTypeIdx != NOT_FOUND && typeTags[funcTypeIdx] == TypeTag.FUNCTION) {
             if (auxTypeCounts[funcTypeIdx] != argCount) {
-                _addError("Function call arity mismatch");
+                _addErrorAt(string(abi.encodePacked(
+                    "Function '", name, "' expects ", _toString(auxTypeCounts[funcTypeIdx]),
+                    " args, got ", _toString(argCount)
+                )), nodeIdx);
             }
             return innerTypes[funcTypeIdx];
         }
@@ -325,6 +328,12 @@ contract SemanticAnalyzer {
     }
 
     function _lookupSymbol(string memory name) internal returns (uint256) {
+        return _lookupSymbolAt(name, 0);
+    }
+
+    uint256 constant NOT_FOUND = type(uint256).max;
+
+    function _lookupSymbolAt(string memory name, uint256 nodeIdx) internal returns (uint256) {
         bytes32 key = keccak256(bytes(name));
         uint256 scope = _currentScope();
         while (true) {
@@ -334,8 +343,12 @@ contract SemanticAnalyzer {
             if (scope == 0) break;
             scope = scopeParents[scope];
         }
-        _addError(string(abi.encodePacked("Undefined variable: ", name)));
-        return 0;
+        if (nodeIdx > 0) {
+            _addErrorAt(string(abi.encodePacked("Undefined variable '", name, "'")), nodeIdx);
+        } else {
+            _addError(string(abi.encodePacked("Undefined variable '", name, "'")));
+        }
+        return NOT_FOUND;
     }
 
     function _currentScope() internal view returns (uint256) {
@@ -355,6 +368,26 @@ contract SemanticAnalyzer {
 
     function _addError(string memory msg) internal {
         errors.push(msg);
+    }
+
+    function _addErrorAt(string memory msg, uint256 nodeIdx) internal {
+        uint256 ln = parser.getLine(nodeIdx);
+        uint256 col = parser.getColumn(nodeIdx);
+        errors.push(string(abi.encodePacked("Line ", _toString(ln), ", Col ", _toString(col), ": ", msg)));
+    }
+
+    function _toString(uint256 value) internal pure returns (string memory) {
+        if (value == 0) return "0";
+        uint256 temp = value;
+        uint256 digits;
+        while (temp != 0) { digits++; temp /= 10; }
+        bytes memory buffer = new bytes(digits);
+        while (value != 0) {
+            digits--;
+            buffer[digits] = bytes1(uint8(48 + value % 10));
+            value /= 10;
+        }
+        return string(buffer);
     }
 
     function _strEq(string memory a, string memory b) internal pure returns (bool) {

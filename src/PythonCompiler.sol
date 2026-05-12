@@ -12,7 +12,12 @@ contract PythonCompiler {
     event Print(uint256[] values);
     event Result(uint256 value);
 
+    // Error storage for getErrors()
+    string[] private errors;
+
     function compile(string memory source) public returns (bytes memory) {
+        errors = new string[](0); // reset errors
+
         Lexer lexer = new Lexer();
         lexer.tokenize(source);
 
@@ -21,6 +26,12 @@ contract PythonCompiler {
 
         SemanticAnalyzer analyzer = new SemanticAnalyzer();
         analyzer.analyze(parser);
+
+        // Collect semantic errors
+        uint256 errCount = analyzer.getErrorCount();
+        for (uint256 i = 0; i < errCount; i++) {
+            errors.push(string(abi.encodePacked("[Semantic] ", analyzer.getError(i))));
+        }
 
         ConstantFolder folder = new ConstantFolder();
         folder.fold(parser);
@@ -36,5 +47,9 @@ contract PythonCompiler {
         vm.execute(bytecode);
 
         return 0;
+    }
+
+    function getErrors() public view returns (string[] memory) {
+        return errors;
     }
 }

@@ -79,4 +79,8 @@ library StringLib {
     function equals(string memory a, string memory b) internal pure returns (bool) {
         return keccak256(bytes(a)) == keccak256(bytes(b));
     }
+
+    function formatError(string memory prefix, uint256 line, uint256 col, string memory message) internal pure returns (string memory) {
+        return string(abi.encodePacked(prefix, " Line ", uintToBytes(line), ", Col ", uintToBytes(col), ": ", message));
+    }
 }

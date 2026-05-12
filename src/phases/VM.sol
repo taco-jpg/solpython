@@ -32,6 +32,7 @@ contract VM {
     event PrintString(string value);
     event Result(uint256 value);
     event Error(string message);
+    event VMError(string message, uint256 pc);
     event Trace(uint256 pc, uint8 op, uint256 stackTop);
 
     // ==================== Opcodes ====================
@@ -139,7 +140,7 @@ contract VM {
             else if (op == OP_PRINT_STR) _execPrintStr();
             else if (op == OP_HALT) break;
             else {
-                emit Error("Unknown opcode");
+                emit VMError("Unknown opcode", pc - 1);
                 break;
             }
         }
@@ -232,14 +233,22 @@ contract VM {
     function _execDiv() internal {
         uint256 a = _pop();
         uint256 b = _pop();
-        require(a != 0, "Division by zero");
+        if (a == 0) {
+            emit VMError("Division by zero", pc - 1);
+            pc = code.length; // halt
+            return;
+        }
         stack.push(b / a);
     }
 
     function _execMod() internal {
         uint256 a = _pop();
         uint256 b = _pop();
-        require(a != 0, "Modulo by zero");
+        if (a == 0) {
+            emit VMError("Modulo by zero", pc - 1);
+            pc = code.length; // halt
+            return;
+        }
         stack.push(b % a);
     }
 
@@ -423,7 +432,12 @@ contract VM {
     function _execListGet() internal {
         uint256 index = _pop();
         uint256 listId = _pop();
-        require(index < lists[listId].length, "List index out of bounds");
+        if (index >= lists[listId].length) {
+            emit VMError("List index out of bounds", pc - 1);
+            pc = code.length; // halt
+            stack.push(0);
+            return;
+        }
         stack.push(lists[listId][index]);
     }
 
@@ -431,7 +445,11 @@ contract VM {
         uint256 value = _pop();
         uint256 index = _pop();
         uint256 listId = _pop();
-        require(index < lists[listId].length, "List index out of bounds");
+        if (index >= lists[listId].length) {
+            emit VMError("List index out of bounds", pc - 1);
+            pc = code.length; // halt
+            return;
+        }
         lists[listId][index] = value;
     }
 
@@ -476,7 +494,11 @@ contract VM {
     // ==================== Helpers ====================
 
     function _pop() internal returns (uint256) {
-        require(stack.length > 0, "Stack underflow");
+        if (stack.length == 0) {
+            emit VMError("Stack underflow", pc - 1);
+            pc = code.length; // halt
+            return 0;
+        }
         uint256 value = stack[stack.length - 1];
         stack.pop();
         return value;

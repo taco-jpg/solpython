@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-P0-A: Constant Folding — Implement ConstantFolder.sol optimizer
+P0-B: Better Error Messages — Add source locations to all error messages
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -16,9 +16,10 @@ P0-A: Constant Folding — Implement ConstantFolder.sol optimizer
 - [x] Negative number arithmetic (unchecked two's complement)
 - [x] Bubble sort test
 - [x] Print string output (PRINT_STR opcode)
+- [x] P0-A: Constant Folding and Dead Code Elimination (17 tests)
 
 ## IN_PROGRESS
-- [ ] P0-A: Constant Folding and Dead Code Elimination
+- [ ] P0-B: Better Error Messages (source locations in errors)
 
 ## NEXT_UP
 - [ ] P0-B: Better Error Messages (source locations in errors)
@@ -37,7 +38,7 @@ P0-A: Constant Folding — Implement ConstantFolder.sol optimizer
 (None yet)
 
 ## TEST_COUNT
-177 passing / 177 total
+194 passing / 194 total
 
 ## PHASE DETAILS
 
