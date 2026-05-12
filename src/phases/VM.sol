@@ -639,59 +639,112 @@ contract VM {
         for (uint256 i = 0; i < numElements; i++) {
             lists[listId].push(0); // pre-allocate
         }
-        for (uint256 i = numElements; i > 0; i--) {
-            lists[listId][i - 1] = _pop();
+        for (uint256 i = 0; i < numElements; i++) {
+            lists[listId][i] = _pop();
         }
         _gcRegister(listId);
         stack.push(listId);
     }
 
     function _execListGet() internal {
-        uint256 key = _pop();
+        uint256 rawIdx = _pop();
         uint256 id = _pop();
+
+        // Check if it's a string — do character access
+        if (_isStringId(id)) {
+            string memory s = _getAnyString(id);
+            bytes memory sb = bytes(s);
+            uint256 len = sb.length;
+            uint256 idx;
+            if (rawIdx > type(uint256).max / 2) {
+                int256 actualIdx = int256(len) + int256(rawIdx);
+                if (actualIdx < 0) {
+                    stack.push(type(uint256).max); // NONE
+                    return;
+                }
+                idx = uint256(actualIdx);
+            } else {
+                idx = rawIdx;
+            }
+            if (idx >= len) {
+                stack.push(type(uint256).max); // NONE
+                return;
+            }
+            bytes memory char = new bytes(1);
+            char[0] = sb[idx];
+            stack.push(_addRuntimeString(char));
+            return;
+        }
 
         // Check if it's a dict
         if (id >= DICT_ID_OFFSET && id < DICT_ID_OFFSET + nextDictId) {
-            if (dictHasKey[id][key]) {
-                stack.push(dictValues[id][key]);
+            if (dictHasKey[id][rawIdx]) {
+                stack.push(dictValues[id][rawIdx]);
             } else {
                 stack.push(type(uint256).max); // NONE
             }
             return;
         }
 
-        // Otherwise treat as list
-        if (key >= lists[id].length) {
-            emit VMError("List index out of bounds", pc - 1);
+        // Otherwise treat as list — handle negative index
+        uint256 len = lists[id].length;
+        uint256 idx;
+        if (rawIdx > type(uint256).max / 2) {
+            int256 actualIdx = int256(len) + int256(rawIdx);
+            if (actualIdx < 0) {
+                emit VMError("list index out of range", pc - 1);
+                pc = code.length;
+                stack.push(0);
+                return;
+            }
+            idx = uint256(actualIdx);
+        } else {
+            idx = rawIdx;
+        }
+        if (idx >= len) {
+            emit VMError("list index out of range", pc - 1);
             pc = code.length; // halt
             stack.push(0);
             return;
         }
-        stack.push(lists[id][key]);
+        stack.push(lists[id][idx]);
     }
 
     function _execListSet() internal {
         uint256 value = _pop();
-        uint256 key = _pop();
+        uint256 rawIdx = _pop();
         uint256 id = _pop();
 
         // Check if it's a dict
         if (id >= DICT_ID_OFFSET && id < DICT_ID_OFFSET + nextDictId) {
-            if (!dictHasKey[id][key]) {
-                dictKeyList[id].push(key);
-                dictHasKey[id][key] = true;
+            if (!dictHasKey[id][rawIdx]) {
+                dictKeyList[id].push(rawIdx);
+                dictHasKey[id][rawIdx] = true;
             }
-            dictValues[id][key] = value;
+            dictValues[id][rawIdx] = value;
             return;
         }
 
-        // Otherwise treat as list
-        if (key >= lists[id].length) {
-            emit VMError("List index out of bounds", pc - 1);
-            pc = code.length; // halt
+        // Otherwise treat as list — handle negative index
+        uint256 len = lists[id].length;
+        uint256 idx;
+        if (rawIdx > type(uint256).max / 2) {
+            int256 actualIdx = int256(len) + int256(rawIdx);
+            if (actualIdx < 0) {
+                emit VMError("list index out of range", pc - 1);
+                pc = code.length;
+                return;
+            }
+            idx = uint256(actualIdx);
+        } else {
+            idx = rawIdx;
+        }
+        if (idx >= len) {
+            emit VMError("list index out of range", pc - 1);
+            pc = code.length;
             return;
         }
-        lists[id][key] = value;
+        lists[id][idx] = value;
     }
 
     function _execListLen() internal {
@@ -1035,16 +1088,28 @@ contract VM {
     }
 
     function _execStrCharAt() internal {
-        uint256 index = _pop();
+        uint256 rawIdx = _pop();
         uint256 strIdx = _pop();
         string memory s = _getAnyString(strIdx);
         bytes memory sb = bytes(s);
-        if (index >= sb.length) {
+        uint256 len = sb.length;
+        uint256 idx;
+        if (rawIdx > type(uint256).max / 2) {
+            int256 actualIdx = int256(len) + int256(rawIdx);
+            if (actualIdx < 0) {
+                stack.push(type(uint256).max); // NONE
+                return;
+            }
+            idx = uint256(actualIdx);
+        } else {
+            idx = rawIdx;
+        }
+        if (idx >= len) {
             stack.push(type(uint256).max); // NONE
             return;
         }
         bytes memory char = new bytes(1);
-        char[0] = sb[index];
+        char[0] = sb[idx];
         uint256 newIdx = _addRuntimeString(char);
         stack.push(newIdx);
     }

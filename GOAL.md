@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-P1-C: Solidity Backend
+FEAT-2: Tuple Type
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -33,6 +33,7 @@ P1-C: Solidity Backend
 - [x] Unbound Local Error (5 tests, semantic analyzer detects read-before-assign)
 - [x] Dict String Keys (8 tests, string key dict ops + `in` operator via OP_IN)
 - [x] For Loop Variable Range (5 tests, range with variable/expr args all working)
+- [x] Negative Indexing (8 tests, lst[-1]/s[-1], fixed list element ordering bug)
 
 ## IN_PROGRESS
 (None — all features complete)
@@ -44,7 +45,7 @@ P1-C: Solidity Backend
 (None yet)
 
 ## TEST_COUNT
-456 passing / 456 total
+464 passing / 464 total
 
 ## PHASE DETAILS
 
