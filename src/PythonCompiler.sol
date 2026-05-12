@@ -8,6 +8,7 @@ import {ConstantFolder} from "./optimizer/ConstantFolder.sol";
 import {CodeGenerator} from "./phases/CodeGenerator.sol";
 import {SolidityBackend} from "./phases/SolidityBackend.sol";
 import {VM} from "./phases/VM.sol";
+import {VFS} from "./vfs/VFS.sol";
 import {NodeType} from "./types/ASTNode.sol";
 
 contract PythonCompiler {
@@ -136,6 +137,53 @@ contract PythonCompiler {
 
         CodeGenerator gen = new CodeGenerator();
         return gen.generate(parser);
+    }
+
+    /// @notice Compile with imports resolved from a VFS.
+    ///         Parses source for import statements, reads modules from VFS, compiles with static linking.
+    function compileWithVFS(string memory source, VFS vfs) public returns (bytes memory) {
+        // Parse source to find import statements
+        Lexer lexer = new Lexer();
+        lexer.tokenize(source);
+        Parser parser = new Parser();
+        parser.parse(lexer);
+
+        // Collect module names from IMPORT_STMT nodes
+        uint256 progAuxStart = parser.getAuxIndex(0);
+        uint256 progAuxCount = parser.getAuxCount(0);
+
+        string[] memory modNames = new string[](progAuxCount);
+        string[] memory modSources = new string[](progAuxCount);
+        uint256 modCount = 0;
+
+        for (uint256 i = 0; i < progAuxCount; i++) {
+            uint256 stmtIdx = parser.getAuxData(progAuxStart + i);
+            if (parser.getNodeType(stmtIdx) == NodeType.IMPORT_STMT) {
+                string memory modName = parser.getStrValue(stmtIdx);
+                // Try reading from VFS: try "modName.py" first, then "modName"
+                string memory path = string(abi.encodePacked(modName, ".py"));
+                if (vfs.fileExists(path)) {
+                    modNames[modCount] = modName;
+                    modSources[modCount] = vfs.readFile(path);
+                    modCount++;
+                } else if (vfs.fileExists(modName)) {
+                    modNames[modCount] = modName;
+                    modSources[modCount] = vfs.readFile(modName);
+                    modCount++;
+                }
+                // If not found in VFS, skip (will error at compile time if needed)
+            }
+        }
+
+        // Trim arrays to actual count
+        string[] memory names = new string[](modCount);
+        string[] memory sources = new string[](modCount);
+        for (uint256 i = 0; i < modCount; i++) {
+            names[i] = modNames[i];
+            sources[i] = modSources[i];
+        }
+
+        return compileWithImports(source, names, sources);
     }
 
     /// @notice Extract a function definition's source text from the original source.

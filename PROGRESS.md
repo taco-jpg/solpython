@@ -317,3 +317,34 @@
 
 ### Test Results
 295/295 passing across 15 suites. New tests: parser recognizes import/from-import, import no-op in codegen, simple function import, multiple function import, cross-module function calls, import with for loop, import with main code, multiple modules, empty module list.
+
+## 2026-05-11 — P2-B: VFS (Virtual File System)
+
+### Changes Made
+
+#### VFS Contract (`src/vfs/VFS.sol`)
+- On-chain file storage using `mapping(string => string)` for content and `mapping(string => bool)` for existence tracking
+- `writeFile(path, content)` — write/overwrite a file
+- `readFile(path)` — read file content (reverts if not found)
+- `fileExists(path)` — check existence
+- `deleteFile(path)` — delete a file (reverts if not found)
+- `fileCount()` — number of files
+- `getFilePath(index)` — get path by index
+- `listFiles()` — get all file paths
+- Events: `FileWritten`, `FileDeleted`
+
+#### PythonCompiler Integration
+- Added `compileWithVFS(source, vfs)` function
+- Parses source for import statements
+- Reads module source from VFS (tries `module.py` then `module`)
+- Delegates to `compileWithImports` for static linking
+
+### Files Created
+- `src/vfs/VFS.sol` — Virtual File System contract
+- `test/VFS.t.sol` — 16 tests
+
+### Files Modified
+- `src/PythonCompiler.sol` — Added VFS import and compileWithVFS function
+
+### Test Results
+311/311 passing across 16 suites. New tests: write/read, file exists, overwrite, delete, delete revert, read revert, file count, get path, list files, delete doesn't remove from list, write/delete events, compile with VFS, VFS multiple modules, VFS no imports, VFS missing module.
