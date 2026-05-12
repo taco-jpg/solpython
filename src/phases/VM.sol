@@ -336,6 +336,7 @@ contract VM {
     function _execAdd() internal {
         uint256 a = _pop();
         uint256 b = _pop();
+        if (_checkNoneArith(a, b)) return;
 
         // Check if either operand is a string (static or runtime)
         if (_isStringId(a) || _isStringId(b)) {
@@ -359,6 +360,7 @@ contract VM {
     function _execSub() internal {
         uint256 a = _pop();
         uint256 b = _pop();
+        if (_checkNoneArith(a, b)) return;
         if (_isFloat(a) || _isFloat(b)) {
             uint256 aScaled = _isFloat(a) ? _floatExtract(a) : a * FLOAT_SCALE;
             uint256 bScaled = _isFloat(b) ? _floatExtract(b) : b * FLOAT_SCALE;
@@ -371,6 +373,7 @@ contract VM {
     function _execMul() internal {
         uint256 a = _pop();
         uint256 b = _pop();
+        if (_checkNoneArith(a, b)) return;
         if (_isFloat(a) || _isFloat(b)) {
             uint256 aScaled = _isFloat(a) ? _floatExtract(a) : a * FLOAT_SCALE;
             uint256 bScaled = _isFloat(b) ? _floatExtract(b) : b * FLOAT_SCALE;
@@ -387,6 +390,7 @@ contract VM {
     function _execDiv() internal {
         uint256 a = _pop();
         uint256 b = _pop();
+        if (_checkNoneArith(a, b)) return;
         if (a == 0) {
             emit VMError("Division by zero", pc - 1);
             pc = code.length; // halt
@@ -404,6 +408,7 @@ contract VM {
     function _execMod() internal {
         uint256 a = _pop();
         uint256 b = _pop();
+        if (_checkNoneArith(a, b)) return;
         if (a == 0) {
             emit VMError("Modulo by zero", pc - 1);
             pc = code.length; // halt
@@ -415,11 +420,17 @@ contract VM {
     function _execPow() internal {
         uint256 a = _pop();
         uint256 b = _pop();
+        if (_checkNoneArith(a, b)) return;
         stack.push(_pow(b, a));
     }
 
     function _execNeg() internal {
         uint256 a = _pop();
+        if (_isNone(a)) {
+            emit VMError("NoneType in arithmetic", pc - 1);
+            pc = code.length;
+            return;
+        }
         unchecked { stack.push(type(uint256).max - a + 1); } // two's complement negation
     }
 
@@ -440,6 +451,7 @@ contract VM {
     function _execLt() internal {
         uint256 a = _pop();
         uint256 b = _pop();
+        if (_checkNoneArith(a, b)) return;
         if (_isFloat(a) || _isFloat(b)) {
             int256 aVal = int256(_isFloat(a) ? _floatExtract(a) : a * FLOAT_SCALE);
             int256 bVal = int256(_isFloat(b) ? _floatExtract(b) : b * FLOAT_SCALE);
@@ -452,6 +464,7 @@ contract VM {
     function _execGt() internal {
         uint256 a = _pop();
         uint256 b = _pop();
+        if (_checkNoneArith(a, b)) return;
         if (_isFloat(a) || _isFloat(b)) {
             int256 aVal = int256(_isFloat(a) ? _floatExtract(a) : a * FLOAT_SCALE);
             int256 bVal = int256(_isFloat(b) ? _floatExtract(b) : b * FLOAT_SCALE);
@@ -464,6 +477,7 @@ contract VM {
     function _execLte() internal {
         uint256 a = _pop();
         uint256 b = _pop();
+        if (_checkNoneArith(a, b)) return;
         if (_isFloat(a) || _isFloat(b)) {
             int256 aVal = int256(_isFloat(a) ? _floatExtract(a) : a * FLOAT_SCALE);
             int256 bVal = int256(_isFloat(b) ? _floatExtract(b) : b * FLOAT_SCALE);
@@ -476,6 +490,7 @@ contract VM {
     function _execGte() internal {
         uint256 a = _pop();
         uint256 b = _pop();
+        if (_checkNoneArith(a, b)) return;
         if (_isFloat(a) || _isFloat(b)) {
             int256 aVal = int256(_isFloat(a) ? _floatExtract(a) : a * FLOAT_SCALE);
             int256 bVal = int256(_isFloat(b) ? _floatExtract(b) : b * FLOAT_SCALE);
@@ -1129,6 +1144,21 @@ contract VM {
     }
 
     // ==================== Helpers ====================
+
+    uint256 constant NONE_VALUE = type(uint256).max;
+
+    function _isNone(uint256 v) internal pure returns (bool) {
+        return v == NONE_VALUE;
+    }
+
+    function _checkNoneArith(uint256 a, uint256 b) internal returns (bool) {
+        if (_isNone(a) || _isNone(b)) {
+            emit VMError("NoneType in arithmetic", pc - 1);
+            pc = code.length;
+            return true;
+        }
+        return false;
+    }
 
     function _pop() internal returns (uint256) {
         if (stack.length == 0) {
