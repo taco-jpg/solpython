@@ -20,15 +20,12 @@ P1-C: Solidity Backend
 - [x] P0-B: Better Error Messages (12 tests, VMError events, getErrors())
 - [x] P1-A: Dict and Set Types (12 dict + 8 set tests)
 - [x] P1-B: String Methods (19 tests, 11 opcodes, method calls, slice syntax)
+- [x] P1-C: Solidity Backend (39 tests, AST-to-Solidity transpiler)
 
 ## IN_PROGRESS
-- [ ] P1-C: Solidity Backend (transpiler)
+- [ ] P2-A: Import (static linking)
 
 ## NEXT_UP
-- [ ] P2-A: Import (static linking)
-- [ ] P2-B: VFS (virtual file system)
-- [ ] P2-C: GC (reference counting)
-- [ ] P2-A: Import (static linking)
 - [ ] P2-B: VFS (virtual file system)
 - [ ] P2-C: GC (reference counting)
 - [ ] P3-A: Yul Backend
@@ -40,7 +37,7 @@ P1-C: Solidity Backend
 (None yet)
 
 ## TEST_COUNT
-245 passing / 245 total
+284 passing / 284 total
 
 ## PHASE DETAILS
 

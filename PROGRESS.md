@@ -246,3 +246,31 @@
 
 ### Test Results
 245/245 passing across 13 suites. New tests: str len, upper, lower, contains, split, int/str conversion, slice, concat, equality, combined operations.
+
+## 2026-05-11 — P1-C: Solidity Backend
+
+### Changes Made
+
+#### SolidityBackend.sol — AST to Solidity source transpiler
+- Walks the AST and generates valid Solidity source code as a string
+- Python functions become `internal pure` Solidity functions with `uint256` params/returns
+- Variables become `uint256` local variables in an `execute()` function
+- Control flow (if/elif/else, while, for) maps directly to Solidity
+- `for x in range(n)` desugars to `for (uint256 __fi = 0; __fi < n; __fi++)` style loops
+- `for x in list` desugars to index-based iteration with `uint256[] memory`
+- List literals become `new uint256[]` array expressions
+- Index access, arithmetic, comparisons, boolean logic all map directly
+- `print()` becomes a comment (Solidity doesn't have console output)
+- `len()` becomes `.length`
+- Dict/set/float/string operations emit comments (not Solidity-compatible)
+- Break/continue map directly to Solidity break/continue
+
+#### PythonCompiler.sol
+- Added `compileToSolidity(source)` function that runs Lexer → Parser → SemanticAnalyzer → SolidityBackend
+
+### Files Created
+- `src/phases/SolidityBackend.sol` — AST to Solidity transpiler
+- `test/SolidityBackend.t.sol` — 39 tests
+
+### Test Results
+284/284 passing across 14 suites. New tests: contract structure, variable assignment, reassignment, arithmetic (add/sub/mul/div/mod), unary neg, augmented assignment, comparisons (eq/lt/gte), boolean logic (and/or/not), literals (bool/none/string), control flow (if/elif/else/while/for), break, function definitions, function calls, list literals, index access, list length, nested expressions, empty program, pass statement, compiler integration.
