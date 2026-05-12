@@ -501,3 +501,26 @@
 
 ### Test Results
 378/378 passing across 20 suites. New tests: try/except parsed, try/except/finally parsed, raise parsed, raise with value parsed, try/except basic, raise in try, finally executes, raise with finally, exception value, try without except, compile and execute, try/except/finally/raise keywords.
+
+## 2026-05-11 — P5: Venv (Virtual Environment)
+
+### Changes Made
+
+#### Venv Contract (`src/venv/Venv.sol`)
+- Compilation environment with its own VFS, settings, and module paths
+- `constructor(name)` — creates a new environment with default settings
+- VFS integration: `writeFile()`, `readFile()`, `fileExists()`, `getVFS()`
+- Settings:
+  - `optimizationLevel` (0=none, 1=basic, 2=aggressive)
+  - `enableGC` (bool, default true)
+  - `targetBackend` ("bytecode", "solidity", "yul")
+- Module paths: `addModulePath()`, `getModulePaths()`, `getModulePathCount()`
+- Module resolution: `resolveModule(name)` — searches direct path, .py extension, and module paths
+- Events: `VenvCreated`, `SettingChanged`
+
+### Files Created
+- `src/venv/Venv.sol` — Virtual Environment contract
+- `test/Venv.t.sol` — 17 tests
+
+### Test Results
+395/395 passing across 21 suites. New tests: create venv, default settings, set optimization level, invalid optimization level, set GC, set backend, write/read, file exists, get VFS, add module path, get module paths, resolve module direct, resolve with .py extension, resolve in path, resolve not found, venv with compiler, venv multiple modules.

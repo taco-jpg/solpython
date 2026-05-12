@@ -27,9 +27,10 @@ P1-C: Solidity Backend
 - [x] P3-A: Yul Backend (33 tests, AST-to-Yul IR transpiler)
 - [x] P3-B: Self-hosting Bootstrap (6 tests, mini Python lexer compiled by Solidity compiler)
 - [x] P4: Exception Handling (15 tests, try/except/finally/raise)
+- [x] P5: Venv (17 tests, compilation environment with VFS, settings, module paths)
 
 ## IN_PROGRESS
-- [ ] P5: Venv
+(None — all features complete)
 
 ## NEXT_UP
 (None — all features complete)
@@ -38,7 +39,7 @@ P1-C: Solidity Backend
 (None yet)
 
 ## TEST_COUNT
-378 passing / 378 total
+395 passing / 395 total
 
 ## PHASE DETAILS
 
