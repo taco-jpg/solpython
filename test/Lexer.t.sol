@@ -32,7 +32,7 @@ contract LexerTest is Test {
     function testFloatLiteral() public {
         Token[] memory tokens = lexer.tokenize("3.14");
         assertEq(uint256(tokens[0].tokenType), uint256(TokenType.FLOAT));
-        assertEq(tokens[0].intValue, 3); // integer part only in v1
+        assertEq(tokens[0].intValue, 3_140_000); // fixed-point scaled by 10^6
         assertEq(tokens[0].lexeme, "3.14");
     }
 

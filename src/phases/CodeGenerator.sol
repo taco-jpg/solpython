@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {NodeType, BinaryOpType, UnaryOpType, CompOpType, AugAssignOp} from "../types/ASTNode.sol";
+import {FLOAT_TAG, FLOAT_TAG_SHIFT} from "../types/TypeInfo.sol";
 import {Parser} from "./Parser.sol";
 
 contract CodeGenerator {
@@ -733,7 +734,7 @@ contract CodeGenerator {
         if (nt == NodeType.INT_LITERAL) {
             _genPush(_iv(nodeIdx));
         } else if (nt == NodeType.FLOAT_LITERAL) {
-            _genPush(_iv(nodeIdx)); // stored as integer
+            _genPushFloat(_iv(nodeIdx)); // emit tagged float
         } else if (nt == NodeType.STRING_LITERAL) {
             _genPushString(_sv(nodeIdx));
         } else if (nt == NodeType.BOOL_LITERAL) {
@@ -996,6 +997,10 @@ contract CodeGenerator {
 
     function _genPushNone() internal {
         _genPush(type(uint256).max);
+    }
+
+    function _genPushFloat(uint256 scaledValue) internal {
+        _genPush((uint256(FLOAT_TAG) << FLOAT_TAG_SHIFT) | scaledValue);
     }
 
     function _genPush(uint256 value) internal {

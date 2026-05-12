@@ -182,6 +182,36 @@ library StringLib {
         return digits;
     }
 
+    function bytesToFloatScaled(bytes memory b) internal pure returns (uint256) {
+        uint256 intPart = 0;
+        uint256 fracPart = 0;
+        uint256 fracDigits = 0;
+        bool afterDot = false;
+
+        for (uint256 i = 0; i < b.length; i++) {
+            if (b[i] == 0x2E) { // '.'
+                afterDot = true;
+                continue;
+            }
+            if (afterDot) {
+                if (fracDigits < 6) {
+                    fracPart = fracPart * 10 + (uint8(b[i]) - 48);
+                    fracDigits++;
+                }
+            } else {
+                intPart = intPart * 10 + (uint8(b[i]) - 48);
+            }
+        }
+
+        // Pad fractional part to 6 digits
+        while (fracDigits < 6) {
+            fracPart *= 10;
+            fracDigits++;
+        }
+
+        return intPart * 1_000_000 + fracPart;
+    }
+
     function bytesToInt(bytes memory b) internal pure returns (int256, bool) {
         if (b.length == 0) return (0, false);
         bool neg = false;

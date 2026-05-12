@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import {FLOAT_SCALE, FLOAT_TAG, FLOAT_TAG_SHIFT, FLOAT_VALUE_MASK} from "../types/TypeInfo.sol";
+
 contract VM {
     // Stack
     uint256[] private stack;
@@ -305,6 +307,18 @@ contract VM {
         return false;
     }
 
+    function _isFloat(uint256 val) internal pure returns (bool) {
+        return (val >> FLOAT_TAG_SHIFT) == FLOAT_TAG;
+    }
+
+    function _floatEncode(uint256 scaledValue) internal pure returns (uint256) {
+        return (uint256(FLOAT_TAG) << FLOAT_TAG_SHIFT) | scaledValue;
+    }
+
+    function _floatExtract(uint256 encoded) internal pure returns (uint256) {
+        return encoded & FLOAT_VALUE_MASK;
+    }
+
     function _execAdd() internal {
         uint256 a = _pop();
         uint256 b = _pop();
@@ -319,6 +333,10 @@ contract VM {
             for (uint256 i = 0; i < bytes(strA).length; i++) result[bytes(strB).length + i] = bytes(strA)[i];
             uint256 newIdx = _addRuntimeString(result);
             stack.push(newIdx);
+        } else if (_isFloat(a) || _isFloat(b)) {
+            uint256 aScaled = _isFloat(a) ? _floatExtract(a) : a * FLOAT_SCALE;
+            uint256 bScaled = _isFloat(b) ? _floatExtract(b) : b * FLOAT_SCALE;
+            stack.push(_floatEncode(bScaled + aScaled));
         } else {
             unchecked { stack.push(b + a); }
         }
@@ -327,16 +345,28 @@ contract VM {
     function _execSub() internal {
         uint256 a = _pop();
         uint256 b = _pop();
-        unchecked { stack.push(b - a); }
+        if (_isFloat(a) || _isFloat(b)) {
+            uint256 aScaled = _isFloat(a) ? _floatExtract(a) : a * FLOAT_SCALE;
+            uint256 bScaled = _isFloat(b) ? _floatExtract(b) : b * FLOAT_SCALE;
+            stack.push(_floatEncode(bScaled - aScaled));
+        } else {
+            unchecked { stack.push(b - a); }
+        }
     }
 
     function _execMul() internal {
         uint256 a = _pop();
         uint256 b = _pop();
-        unchecked {
-            uint256 result = b * a;
-            emit Trace(pc - 1, 0x12, result);
-            stack.push(result);
+        if (_isFloat(a) || _isFloat(b)) {
+            uint256 aScaled = _isFloat(a) ? _floatExtract(a) : a * FLOAT_SCALE;
+            uint256 bScaled = _isFloat(b) ? _floatExtract(b) : b * FLOAT_SCALE;
+            stack.push(_floatEncode(bScaled * aScaled / FLOAT_SCALE));
+        } else {
+            unchecked {
+                uint256 result = b * a;
+                emit Trace(pc - 1, 0x12, result);
+                stack.push(result);
+            }
         }
     }
 
@@ -348,7 +378,13 @@ contract VM {
             pc = code.length; // halt
             return;
         }
-        stack.push(b / a);
+        if (_isFloat(a) || _isFloat(b)) {
+            uint256 aScaled = _isFloat(a) ? _floatExtract(a) : a * FLOAT_SCALE;
+            uint256 bScaled = _isFloat(b) ? _floatExtract(b) : b * FLOAT_SCALE;
+            stack.push(_floatEncode(bScaled * FLOAT_SCALE / aScaled));
+        } else {
+            stack.push(b / a);
+        }
     }
 
     function _execMod() internal {
@@ -390,25 +426,49 @@ contract VM {
     function _execLt() internal {
         uint256 a = _pop();
         uint256 b = _pop();
-        stack.push(int256(b) < int256(a) ? 1 : 0);
+        if (_isFloat(a) || _isFloat(b)) {
+            int256 aVal = int256(_isFloat(a) ? _floatExtract(a) : a * FLOAT_SCALE);
+            int256 bVal = int256(_isFloat(b) ? _floatExtract(b) : b * FLOAT_SCALE);
+            stack.push(bVal < aVal ? 1 : 0);
+        } else {
+            stack.push(int256(b) < int256(a) ? 1 : 0);
+        }
     }
 
     function _execGt() internal {
         uint256 a = _pop();
         uint256 b = _pop();
-        stack.push(int256(b) > int256(a) ? 1 : 0);
+        if (_isFloat(a) || _isFloat(b)) {
+            int256 aVal = int256(_isFloat(a) ? _floatExtract(a) : a * FLOAT_SCALE);
+            int256 bVal = int256(_isFloat(b) ? _floatExtract(b) : b * FLOAT_SCALE);
+            stack.push(bVal > aVal ? 1 : 0);
+        } else {
+            stack.push(int256(b) > int256(a) ? 1 : 0);
+        }
     }
 
     function _execLte() internal {
         uint256 a = _pop();
         uint256 b = _pop();
-        stack.push(int256(b) <= int256(a) ? 1 : 0);
+        if (_isFloat(a) || _isFloat(b)) {
+            int256 aVal = int256(_isFloat(a) ? _floatExtract(a) : a * FLOAT_SCALE);
+            int256 bVal = int256(_isFloat(b) ? _floatExtract(b) : b * FLOAT_SCALE);
+            stack.push(bVal <= aVal ? 1 : 0);
+        } else {
+            stack.push(int256(b) <= int256(a) ? 1 : 0);
+        }
     }
 
     function _execGte() internal {
         uint256 a = _pop();
         uint256 b = _pop();
-        stack.push(int256(b) >= int256(a) ? 1 : 0);
+        if (_isFloat(a) || _isFloat(b)) {
+            int256 aVal = int256(_isFloat(a) ? _floatExtract(a) : a * FLOAT_SCALE);
+            int256 bVal = int256(_isFloat(b) ? _floatExtract(b) : b * FLOAT_SCALE);
+            stack.push(bVal >= aVal ? 1 : 0);
+        } else {
+            stack.push(int256(b) >= int256(a) ? 1 : 0);
+        }
     }
 
     // ==================== Boolean ====================
@@ -607,8 +667,11 @@ contract VM {
         }
         emit Trace(pc - 2, 0x80, values[0]);
 
-        // Check if single value is a string (static or runtime)
-        if (numArgs == 1 && _isStringId(values[0])) {
+        // Check if single value is a float
+        if (numArgs == 1 && _isFloat(values[0])) {
+            string memory s = _formatFloat(_floatExtract(values[0]));
+            emit PrintString(s);
+        } else if (numArgs == 1 && _isStringId(values[0])) {
             string memory s = _getAnyString(values[0]);
             emit PrintString(s);
         } else {
@@ -841,7 +904,12 @@ contract VM {
 
     function _execIntToStr() internal {
         uint256 val = _pop();
-        bytes memory result = _intToBytes(int256(val));
+        bytes memory result;
+        if (_isFloat(val)) {
+            result = _floatToBytes(_floatExtract(val));
+        } else {
+            result = _intToBytes(int256(val));
+        }
         uint256 newIdx = _addRuntimeString(result);
         stack.push(newIdx);
     }
@@ -958,6 +1026,39 @@ contract VM {
         for (uint256 k = start; k < b.length; k++) last[k - start] = b[k];
         result[partIdx] = last;
         return result;
+    }
+
+    function _floatToBytes(uint256 scaledValue) internal pure returns (bytes memory) {
+        uint256 intPart = scaledValue / FLOAT_SCALE;
+        uint256 fracPart = scaledValue % FLOAT_SCALE;
+
+        // Convert integer part
+        bytes memory intBytes = _intToBytes(int256(intPart));
+
+        // Convert fractional part to 6 digits
+        bytes memory fracBytes = new bytes(6);
+        uint256 f = fracPart;
+        for (uint256 i = 6; i > 0; i--) {
+            fracBytes[i - 1] = bytes1(uint8(48 + f % 10));
+            f /= 10;
+        }
+
+        // Trim trailing zeros but keep at least 1 digit
+        uint256 lastNonZero = 6;
+        while (lastNonZero > 1 && fracBytes[lastNonZero - 1] == 0x30) {
+            lastNonZero--;
+        }
+
+        // Combine: intBytes + "." + fracBytes
+        bytes memory result = new bytes(intBytes.length + 1 + lastNonZero);
+        for (uint256 i = 0; i < intBytes.length; i++) result[i] = intBytes[i];
+        result[intBytes.length] = 0x2E; // '.'
+        for (uint256 i = 0; i < lastNonZero; i++) result[intBytes.length + 1 + i] = fracBytes[i];
+        return result;
+    }
+
+    function _formatFloat(uint256 scaledValue) internal pure returns (string memory) {
+        return string(_floatToBytes(scaledValue));
     }
 
     function _intToBytes(int256 value) internal pure returns (bytes memory) {

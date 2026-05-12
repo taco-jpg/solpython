@@ -191,11 +191,12 @@ contract Lexer {
         }
 
         bytes memory lexeme = StringLib.slice(source, start, pos);
-        uint256 value = StringLib.bytesToUint(lexeme);
 
         if (isFloat) {
+            uint256 value = StringLib.bytesToFloatScaled(lexeme);
             _emitToken(TokenType.FLOAT, StringLib.fromBytes(lexeme), value);
         } else {
+            uint256 value = StringLib.bytesToUint(lexeme);
             _emitToken(TokenType.INTEGER, StringLib.fromBytes(lexeme), value);
         }
     }

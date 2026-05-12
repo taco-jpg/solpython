@@ -25,3 +25,9 @@ struct TypeInfo {
     // For FUNCTION: number of params
     uint256 auxCount;
 }
+
+// Float fixed-point constants
+uint256 constant FLOAT_SCALE = 1_000_000;
+uint256 constant FLOAT_TAG = 5;
+uint256 constant FLOAT_TAG_SHIFT = 252;
+uint256 constant FLOAT_VALUE_MASK = (1 << 252) - 1;
