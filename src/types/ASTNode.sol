@@ -38,7 +38,13 @@ enum NodeType {
     STRING_LITERAL,     // "hello"
     BOOL_LITERAL,       // True, False
     NONE_LITERAL,       // None
-    IDENTIFIER_REF      // variable reference
+    IDENTIFIER_REF,     // variable reference
+
+    // Dict and Set
+    DICT_LITERAL,       // {k: v, ...}  exprAux = [k0, v0, k1, v1, ...]
+    SET_LITERAL,        // {e, ...}     exprAux = [e0, e1, ...]
+    DICT_ACCESS,        // d[key]  child1=dict, child2=key
+    DICT_ASSIGN         // d[key] = val  child1=dict, child2=key, child3=value
 }
 
 enum BinaryOpType {

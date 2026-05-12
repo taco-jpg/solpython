@@ -9,7 +9,9 @@ enum TypeTag {
     BOOL,
     NONE,
     LIST,       // list of elementType
-    FUNCTION    // function with paramTypes and returnType
+    FUNCTION,   // function with paramTypes and returnType
+    DICT,       // dictionary
+    SET         // set
 }
 
 struct TypeInfo {

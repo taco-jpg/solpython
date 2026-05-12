@@ -424,6 +424,7 @@ contract Parser {
         if (t == TokenType.NONE_VAL) { _adv(); return _emit(NodeType.NONE_LITERAL, 0, 0, 0, 0, 0, 0, "", ln, col); }
         if (t == TokenType.LPAREN) { _adv(); uint256 e = _expr(); _exp(TokenType.RPAREN); return e; }
         if (t == TokenType.LBRACKET) { return _listLit(); }
+        if (t == TokenType.LBRACE) { return _dictOrSetLit(); }
 
         if (t == TokenType.IDENTIFIER || (t >= TokenType.KW_DEF && t <= TokenType.KW_PRINT)) {
             string memory name = _lex();
@@ -476,6 +477,58 @@ contract Parser {
             target = _emit(NodeType.INDEX_ACCESS, target, idx, 0, 0, 0, 0, "", ln, col);
         }
         return target;
+    }
+
+    function _dictOrSetLit() internal returns (uint256) {
+        uint256 ln = _ln(); uint256 col = _col();
+        _exp(TokenType.LBRACE);
+
+        // Empty dict: {}
+        if (_cur() == TokenType.RBRACE) {
+            _adv();
+            return _emit(NodeType.DICT_LITERAL, 0, 0, 0, 0, 0, 0, "", ln, col);
+        }
+
+        // Parse first expression
+        uint256 first = _expr();
+
+        // Disambiguate: if next is COLON → dict, otherwise → set
+        if (_cur() == TokenType.COLON) {
+            // Dict literal
+            _adv(); // skip colon
+            uint256 firstVal = _expr();
+            exprAux.push(first);
+            exprAux.push(firstVal);
+            uint256 pairCount = 1;
+
+            while (_cur() == TokenType.COMMA) {
+                _adv();
+                if (_cur() == TokenType.RBRACE) break; // trailing comma
+                uint256 k = _expr();
+                _exp(TokenType.COLON);
+                uint256 v = _expr();
+                exprAux.push(k);
+                exprAux.push(v);
+                pairCount++;
+            }
+            _exp(TokenType.RBRACE);
+            uint256 es = exprAux.length - (pairCount * 2);
+            return _emit(NodeType.DICT_LITERAL, 0, 0, 0, es, pairCount, 0, "", ln, col);
+        } else {
+            // Set literal
+            exprAux.push(first);
+            uint256 elemCount = 1;
+
+            while (_cur() == TokenType.COMMA) {
+                _adv();
+                if (_cur() == TokenType.RBRACE) break; // trailing comma
+                exprAux.push(_expr());
+                elemCount++;
+            }
+            _exp(TokenType.RBRACE);
+            uint256 es = exprAux.length - elemCount;
+            return _emit(NodeType.SET_LITERAL, 0, 0, 0, es, elemCount, 0, "", ln, col);
+        }
     }
 
     // ==================== Helpers ====================

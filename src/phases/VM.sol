@@ -19,6 +19,17 @@ contract VM {
     mapping(uint256 => uint256[]) private lists;
     uint256 private nextListId;
 
+    // Dicts: dictId => key => value
+    mapping(uint256 => mapping(uint256 => uint256)) private dictValues;
+    mapping(uint256 => mapping(uint256 => bool)) private dictHasKey;
+    mapping(uint256 => uint256[]) private dictKeyList;
+    uint256 private nextDictId;
+
+    // Sets: setId => value => bool
+    mapping(uint256 => mapping(uint256 => bool)) private setMembers;
+    mapping(uint256 => uint256) private setSize;
+    uint256 private nextSetId;
+
     // String table
     bytes private stringTable;
 
@@ -82,6 +93,17 @@ contract VM {
     uint8 constant OP_EMIT = 0x81;
     uint8 constant OP_PRINT_STR = 0x82;
 
+    uint8 constant OP_MAKE_DICT = 0x90;
+    uint8 constant OP_DICT_GET = 0x91;
+    uint8 constant OP_DICT_SET = 0x92;
+    uint8 constant OP_DICT_HAS = 0x93;
+    uint8 constant OP_DICT_KEYS = 0x94;
+    uint8 constant OP_DICT_LEN = 0x95;
+    uint8 constant OP_MAKE_SET = 0x96;
+    uint8 constant OP_SET_ADD = 0x97;
+    uint8 constant OP_SET_HAS = 0x98;
+    uint8 constant OP_SET_LEN = 0x99;
+
     uint8 constant OP_HALT = 0xFF;
 
     // ==================== Entry Point ====================
@@ -138,6 +160,16 @@ contract VM {
             else if (op == OP_PRINT) _execPrint();
             else if (op == OP_EMIT) _execEmit();
             else if (op == OP_PRINT_STR) _execPrintStr();
+            else if (op == OP_MAKE_DICT) _execMakeDict();
+            else if (op == OP_DICT_GET) _execDictGet();
+            else if (op == OP_DICT_SET) _execDictSet();
+            else if (op == OP_DICT_HAS) _execDictHas();
+            else if (op == OP_DICT_KEYS) _execDictKeys();
+            else if (op == OP_DICT_LEN) _execDictLen();
+            else if (op == OP_MAKE_SET) _execMakeSet();
+            else if (op == OP_SET_ADD) _execSetAdd();
+            else if (op == OP_SET_HAS) _execSetHas();
+            else if (op == OP_SET_LEN) _execSetLen();
             else if (op == OP_HALT) break;
             else {
                 emit VMError("Unknown opcode", pc - 1);
@@ -489,6 +521,100 @@ contract VM {
             result[i] = stringTable[index + 2 + i];
         }
         return string(result);
+    }
+
+    // ==================== Dicts ====================
+
+    function _execMakeDict() internal {
+        uint16 numPairs = _readUint16();
+        uint256 dictId = nextDictId++;
+        for (uint256 i = 0; i < numPairs; i++) {
+            uint256 key = _pop();
+            uint256 value = _pop();
+            if (!dictHasKey[dictId][key]) {
+                dictKeyList[dictId].push(key);
+                dictHasKey[dictId][key] = true;
+            }
+            dictValues[dictId][key] = value;
+        }
+        stack.push(dictId);
+    }
+
+    function _execDictGet() internal {
+        uint256 key = _pop();
+        uint256 dictId = _pop();
+        if (dictHasKey[dictId][key]) {
+            stack.push(dictValues[dictId][key]);
+        } else {
+            stack.push(type(uint256).max); // NONE
+        }
+    }
+
+    function _execDictSet() internal {
+        uint256 value = _pop();
+        uint256 key = _pop();
+        uint256 dictId = _pop();
+        if (!dictHasKey[dictId][key]) {
+            dictKeyList[dictId].push(key);
+            dictHasKey[dictId][key] = true;
+        }
+        dictValues[dictId][key] = value;
+    }
+
+    function _execDictHas() internal {
+        uint256 key = _pop();
+        uint256 dictId = _pop();
+        stack.push(dictHasKey[dictId][key] ? 1 : 0);
+    }
+
+    function _execDictKeys() internal {
+        uint256 dictId = _pop();
+        uint256 listId = nextListId++;
+        uint256 len = dictKeyList[dictId].length;
+        for (uint256 i = 0; i < len; i++) {
+            lists[listId].push(dictKeyList[dictId][i]);
+        }
+        stack.push(listId);
+    }
+
+    function _execDictLen() internal {
+        uint256 dictId = _pop();
+        stack.push(dictKeyList[dictId].length);
+    }
+
+    // ==================== Sets ====================
+
+    function _execMakeSet() internal {
+        uint16 numElements = _readUint16();
+        uint256 setId = nextSetId++;
+        for (uint256 i = 0; i < numElements; i++) {
+            uint256 value = _pop();
+            if (!setMembers[setId][value]) {
+                setMembers[setId][value] = true;
+                setSize[setId]++;
+            }
+        }
+        stack.push(setId);
+    }
+
+    function _execSetAdd() internal {
+        uint256 value = _pop();
+        uint256 setId = _pop();
+        if (!setMembers[setId][value]) {
+            setMembers[setId][value] = true;
+            setSize[setId]++;
+        }
+    }
+
+    function _execSetHas() internal {
+        uint256 value = _pop();
+        uint256 setId = _pop();
+        stack.push(setMembers[setId][value] ? 1 : 0);
+    }
+
+    function _execSetLen() internal {
+        uint256 setId = _pop();
+        stack.push(setSize[setId]);
     }
 
     // ==================== Helpers ====================

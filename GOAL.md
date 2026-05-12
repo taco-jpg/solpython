@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-P0-B: Better Error Messages — Add source locations to all error messages
+P1-A: Dict and Set Types
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -17,12 +17,13 @@ P0-B: Better Error Messages — Add source locations to all error messages
 - [x] Bubble sort test
 - [x] Print string output (PRINT_STR opcode)
 - [x] P0-A: Constant Folding and Dead Code Elimination (17 tests)
+- [x] P0-B: Better Error Messages (12 tests, VMError events, getErrors())
 
 ## IN_PROGRESS
-- [ ] P0-B: Better Error Messages (source locations in errors)
+- [ ] P1-A: Dict and Set Types
 
 ## NEXT_UP
-- [ ] P0-B: Better Error Messages (source locations in errors)
+- [ ] P1-B: String Methods
 - [ ] P1-A: Dict and Set Types
 - [ ] P1-B: String Methods
 - [ ] P1-C: Solidity Backend (transpiler)
@@ -38,7 +39,7 @@ P0-B: Better Error Messages — Add source locations to all error messages
 (None yet)
 
 ## TEST_COUNT
-194 passing / 194 total
+206 passing / 206 total
 
 ## PHASE DETAILS
 

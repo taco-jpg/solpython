@@ -89,6 +89,17 @@ contract CodeGenerator {
     uint8 constant OP_EMIT = 0x81;
     uint8 constant OP_PRINT_STR = 0x82;
 
+    uint8 constant OP_MAKE_DICT = 0x90;
+    uint8 constant OP_DICT_GET = 0x91;
+    uint8 constant OP_DICT_SET = 0x92;
+    uint8 constant OP_DICT_HAS = 0x93;
+    uint8 constant OP_DICT_KEYS = 0x94;
+    uint8 constant OP_DICT_LEN = 0x95;
+    uint8 constant OP_MAKE_SET = 0x96;
+    uint8 constant OP_SET_ADD = 0x97;
+    uint8 constant OP_SET_HAS = 0x98;
+    uint8 constant OP_SET_LEN = 0x99;
+
     uint8 constant OP_HALT = 0xFF;
 
     // ==================== Entry Point ====================
@@ -665,9 +676,17 @@ contract CodeGenerator {
         } else if (nt == NodeType.LIST_LITERAL) {
             _genListLiteral(nodeIdx);
         } else if (nt == NodeType.INDEX_ACCESS) {
-            _genExpr(_c1(nodeIdx)); // list
+            _genExpr(_c1(nodeIdx)); // target
             _genExpr(_c2(nodeIdx)); // index
-            _emitOp(OP_LIST_GET);
+            _emitOp(OP_LIST_GET); // default to list; VM handles dict at runtime
+        } else if (nt == NodeType.DICT_LITERAL) {
+            _genDictLiteral(nodeIdx);
+        } else if (nt == NodeType.SET_LITERAL) {
+            _genSetLiteral(nodeIdx);
+        } else if (nt == NodeType.DICT_ACCESS) {
+            _genExpr(_c1(nodeIdx)); // dict
+            _genExpr(_c2(nodeIdx)); // key
+            _emitOp(OP_DICT_GET);
         }
     }
 
@@ -744,6 +763,27 @@ contract CodeGenerator {
             _genExpr(_ea(_ai(nodeIdx) + i - 1));
         }
         _emitOp(OP_MAKE_LIST);
+        _emitUint16(uint16(elemCount));
+    }
+
+    function _genDictLiteral(uint256 nodeIdx) internal {
+        uint256 pairCount = _ac(nodeIdx);
+        // Push key-value pairs in reverse order: [k0, v0, k1, v1, ...] → push last pair first
+        for (uint256 i = pairCount; i > 0; i--) {
+            _genExpr(_ea(_ai(nodeIdx) + (i - 1) * 2 + 1)); // value
+            _genExpr(_ea(_ai(nodeIdx) + (i - 1) * 2));     // key
+        }
+        _emitOp(OP_MAKE_DICT);
+        _emitUint16(uint16(pairCount));
+    }
+
+    function _genSetLiteral(uint256 nodeIdx) internal {
+        uint256 elemCount = _ac(nodeIdx);
+        // Push elements in reverse order
+        for (uint256 i = elemCount; i > 0; i--) {
+            _genExpr(_ea(_ai(nodeIdx) + i - 1));
+        }
+        _emitOp(OP_MAKE_SET);
         _emitUint16(uint16(elemCount));
     }
 
