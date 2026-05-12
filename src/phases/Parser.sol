@@ -85,6 +85,8 @@ contract Parser {
         if (t == TokenType.KW_BREAK) return _breakStmt();
         if (t == TokenType.KW_CONTINUE) return _contStmt();
         if (t == TokenType.KW_CLASS) return _classDef();
+        if (t == TokenType.KW_IMPORT) return _importStmt();
+        if (t == TokenType.KW_FROM) return _fromImportStmt();
         return _assignOrExpr();
     }
 
@@ -239,6 +241,38 @@ contract Parser {
         uint256 body = _suite();
         _bodyPopTo(lvl, body);
         return _emit(NodeType.CLASS_DEF, parent, body, 0, 0, 0, 0, name, ln, col);
+    }
+
+    function _importStmt() internal returns (uint256) {
+        // import module_name
+        uint256 ln = _ln(); uint256 col = _col();
+        _adv(); // skip 'import'
+        string memory moduleName = _lex();
+        _exp(TokenType.IDENTIFIER);
+        // IMPORT_STMT: strValue = module name, no children
+        return _emit(NodeType.IMPORT_STMT, 0, 0, 0, 0, 0, 0, moduleName, ln, col);
+    }
+
+    function _fromImportStmt() internal returns (uint256) {
+        // from module_name import name1 [, name2, ...]
+        uint256 ln = _ln(); uint256 col = _col();
+        _adv(); // skip 'from'
+        string memory moduleName = _lex();
+        _exp(TokenType.IDENTIFIER);
+        _exp(TokenType.KW_IMPORT);
+
+        uint256 nc = 0;
+        while (_cur() == TokenType.IDENTIFIER && !_end()) {
+            string memory name = _lex();
+            _adv();
+            exprAux.push(_emit(NodeType.IDENTIFIER_REF, 0, 0, 0, 0, 0, 0, name, _ln(), _col()));
+            nc++;
+            if (_cur() == TokenType.COMMA) _adv();
+        }
+        uint256 ns = exprAux.length - nc;
+
+        // IMPORT_STMT: strValue = module name, auxIndex = names start, auxCount = name count
+        return _emit(NodeType.IMPORT_STMT, 0, 0, 0, ns, nc, 0, moduleName, ln, col);
     }
 
     function _assignOrExpr() internal returns (uint256) {

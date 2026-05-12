@@ -139,6 +139,9 @@ contract SolidityBackend {
         } else if (nt == NodeType.CONTINUE_STMT) {
             _writeIndent();
             _writeln("continue;");
+        } else if (nt == NodeType.IMPORT_STMT) {
+            _writeIndent();
+            _writeln(string.concat("// import ", _sv(nodeIdx)));
         }
     }
 

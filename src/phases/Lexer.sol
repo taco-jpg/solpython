@@ -229,6 +229,7 @@ contract Lexer {
         if (hash == keccak256("break")) return TokenType.KW_BREAK;
         if (hash == keccak256("continue")) return TokenType.KW_CONTINUE;
         if (hash == keccak256("import")) return TokenType.KW_IMPORT;
+        if (hash == keccak256("from")) return TokenType.KW_FROM;
         if (hash == keccak256("class")) return TokenType.KW_CLASS;
         if (hash == keccak256("True")) return TokenType.BOOL_TRUE;
         if (hash == keccak256("False")) return TokenType.BOOL_FALSE;

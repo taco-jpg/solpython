@@ -26,6 +26,7 @@ enum TokenType {
     KW_BREAK,
     KW_CONTINUE,
     KW_IMPORT,
+    KW_FROM,
     KW_CLASS,
     KW_AND,
     KW_OR,

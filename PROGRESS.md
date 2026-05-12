@@ -274,3 +274,46 @@
 
 ### Test Results
 284/284 passing across 14 suites. New tests: contract structure, variable assignment, reassignment, arithmetic (add/sub/mul/div/mod), unary neg, augmented assignment, comparisons (eq/lt/gte), boolean logic (and/or/not), literals (bool/none/string), control flow (if/elif/else/while/for), break, function definitions, function calls, list literals, index access, list length, nested expressions, empty program, pass statement, compiler integration.
+
+## 2026-05-11 — P2-A: Import (Static Linking)
+
+### Changes Made
+
+#### AST Changes
+- Added `IMPORT_STMT` to `NodeType` enum
+- `import module` — strValue = module name
+- `from module import name` — strValue = module name, exprAux = imported names
+
+#### Token Changes
+- Added `KW_FROM` to `TokenType` enum
+- Added `"from"` keyword recognition in Lexer
+
+#### Parser Changes
+- Added `_importStmt()` for `import module` syntax
+- Added `_fromImportStmt()` for `from module import name [, name2, ...]` syntax
+
+#### CodeGenerator / SemanticAnalyzer / SolidityBackend
+- Added IMPORT_STMT handling as no-op (imports resolved at compiler level)
+
+#### PythonCompiler Changes
+- Added `compileWithImports(source, moduleNames[], moduleSources[])` function
+- Each imported module is parsed separately, function definitions are extracted
+- Function source text is prepended to the main source
+- Combined source is compiled as a single program (static linking)
+- Added `_extractFuncSource()` helper that uses line tracking to extract function text
+
+### Files Created
+- `test/Import.t.sol` — 11 tests
+
+### Files Modified
+- `src/types/ASTNode.sol` — Added IMPORT_STMT node type
+- `src/types/Token.sol` — Added KW_FROM
+- `src/phases/Lexer.sol` — Added "from" keyword
+- `src/phases/Parser.sol` — Added import parsing
+- `src/phases/CodeGenerator.sol` — Added IMPORT_STMT no-op
+- `src/phases/SemanticAnalyzer.sol` — Added IMPORT_STMT no-op
+- `src/phases/SolidityBackend.sol` — Added IMPORT_STMT comment emission
+- `src/PythonCompiler.sol` — Added compileWithImports, _extractFuncSource
+
+### Test Results
+295/295 passing across 15 suites. New tests: parser recognizes import/from-import, import no-op in codegen, simple function import, multiple function import, cross-module function calls, import with for loop, import with main code, multiple modules, empty module list.

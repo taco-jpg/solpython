@@ -20,6 +20,7 @@ enum NodeType {
     CONTINUE_STMT,      // continue
     EXPR_STMT,          // expression as statement (e.g. function call)
     CLASS_DEF,          // class Name: body
+    IMPORT_STMT,        // import module  or  from module import name [, name2, ...]
 
     // Expressions
     BINARY_OP,          // a + b, a - b, etc

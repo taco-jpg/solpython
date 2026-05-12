@@ -21,12 +21,12 @@ P1-C: Solidity Backend
 - [x] P1-A: Dict and Set Types (12 dict + 8 set tests)
 - [x] P1-B: String Methods (19 tests, 11 opcodes, method calls, slice syntax)
 - [x] P1-C: Solidity Backend (39 tests, AST-to-Solidity transpiler)
+- [x] P2-A: Import (11 tests, static linking, compileWithImports)
 
 ## IN_PROGRESS
-- [ ] P2-A: Import (static linking)
+- [ ] P2-B: VFS (virtual file system)
 
 ## NEXT_UP
-- [ ] P2-B: VFS (virtual file system)
 - [ ] P2-C: GC (reference counting)
 - [ ] P3-A: Yul Backend
 - [ ] P3-B: Self-hosting Bootstrap
@@ -37,7 +37,7 @@ P1-C: Solidity Backend
 (None yet)
 
 ## TEST_COUNT
-284 passing / 284 total
+295 passing / 295 total
 
 ## PHASE DETAILS
 

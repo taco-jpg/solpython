@@ -194,6 +194,8 @@ contract CodeGenerator {
             _continuePatches.push(code.length - 4);
         } else if (nt == NodeType.CLASS_DEF) {
             _genClassDef(nodeIdx);
+        } else if (nt == NodeType.IMPORT_STMT) {
+            // No-op: imports are handled at the linker level
         }
     }
 

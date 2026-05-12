@@ -87,6 +87,8 @@ contract SemanticAnalyzer {
             _analyzeReturnStmt(nodeIdx);
         } else if (nt == NodeType.CLASS_DEF) {
             _analyzeClassDef(nodeIdx);
+        } else if (nt == NodeType.IMPORT_STMT) {
+            // No-op: imports resolved at compiler level
         } else if (nt == NodeType.EXPR_STMT) {
             _analyzeExpr(_c1(nodeIdx));
         }
