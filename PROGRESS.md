@@ -135,3 +135,46 @@
 15/15 passing. Covers: hello world, print multiple, simple arithmetic, nested arithmetic, augmented assignment, if/else, elif chains, while loops, simple function call, recursive factorial, recursive fibonacci, list create/access, list length, bytecode verification, end-to-end fibonacci.
 
 ## Total Test Count: 151 tests across 6 suites, all passing.
+
+## 2026-05-11 — Feature Extensions: For Loops, Negative Numbers, Bubble Sort, Print String
+
+### Changes Made
+
+#### P1: For Loop Implementation
+- Fully implemented `_genForRange` supporting `range(n)`, `range(start, stop)`, `range(start, stop, step)`
+- Implemented `_genForList` for list literal iteration
+- Implemented `_genForIterable` for variable-based list iteration
+- Added break/continue support with backpatching for both while and for loops
+- For loops desugar into while loops with temp variables `__fi`, `__fs`, `__fz`
+
+#### P2: Negative Number Arithmetic
+- Changed VM's ADD, SUB, MUL, NEG operations to use `unchecked` blocks for two's complement arithmetic
+- Comparison operations (LT, GT, LTE, GTE) use `int256` casting for correct signed comparison
+
+#### P3: Bubble Sort Test
+- Added `testBubbleSort` to Integration.t.sol — sorts `[5, 3, 8, 1, 2]` into `[1, 2, 3, 5, 8]`
+- Uses nested for loops with list element swapping
+
+#### P4: Print String Output
+- Added `OP_PRINT_STR` (0x82) opcode to VM and ISA
+- Added `PrintString(string)` event to VM
+- Added `_execPrintStr` handler that reads from string table
+- Code generator detects STRING_LITERAL arguments to print() and emits PRINT_STR
+- Added `testPrintString` to Integration.t.sol
+
+#### Critical Bug Fix: Parser Body Stack Management
+- Root cause: `_bodyCur()` always returned the last pushed body level because `_bodyPopTo` didn't restore the parent nesting
+- Symptom: Recursive functions (factorial, fibonacci) returned wrong values because statements after nested blocks were pushed to wrong body level
+- Fix: Added `_bodyNesting` stack that is pushed in `_bodyPush` and popped in `_bodyPopTo`, separate from `bodyStackIdx` used for merge loop
+
+### Files Modified
+- `src/phases/Parser.sol` — Added `_bodyNesting` stack, updated `_bodyPush`, `_bodyPopTo`, `_bodyCur`
+- `src/phases/CodeGenerator.sol` — Added for loop desugaring, break/continue backpatching, PRINT_STR emission
+- `src/phases/VM.sol` — Added unchecked arithmetic, PRINT_STR opcode, PrintString event
+- `ISA.md` — Added PRINT_STR opcode documentation
+
+### Files Created
+- `test/ForLoop.t.sol` — 13 tests for for loops (range, list, nested, break, continue)
+
+### Test Results
+177/177 passing across 8 suites. New tests: for loop range variants, list iteration, nested loops, break, continue, bubble sort, print string.

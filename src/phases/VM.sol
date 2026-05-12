@@ -29,8 +29,10 @@ contract VM {
 
     // Events
     event Print(uint256[] values);
+    event PrintString(string value);
     event Result(uint256 value);
     event Error(string message);
+    event Trace(uint256 pc, uint8 op, uint256 stackTop);
 
     // ==================== Opcodes ====================
     uint8 constant OP_PUSH = 0x01;
@@ -77,6 +79,7 @@ contract VM {
 
     uint8 constant OP_PRINT = 0x80;
     uint8 constant OP_EMIT = 0x81;
+    uint8 constant OP_PRINT_STR = 0x82;
 
     uint8 constant OP_HALT = 0xFF;
 
@@ -133,6 +136,7 @@ contract VM {
             else if (op == OP_LIST_LEN) _execListLen();
             else if (op == OP_PRINT) _execPrint();
             else if (op == OP_EMIT) _execEmit();
+            else if (op == OP_PRINT_STR) _execPrintStr();
             else if (op == OP_HALT) break;
             else {
                 emit Error("Unknown opcode");
@@ -206,19 +210,23 @@ contract VM {
     function _execAdd() internal {
         uint256 a = _pop();
         uint256 b = _pop();
-        stack.push(b + a);
+        unchecked { stack.push(b + a); }
     }
 
     function _execSub() internal {
         uint256 a = _pop();
         uint256 b = _pop();
-        stack.push(b - a);
+        unchecked { stack.push(b - a); }
     }
 
     function _execMul() internal {
         uint256 a = _pop();
         uint256 b = _pop();
-        stack.push(b * a);
+        unchecked {
+            uint256 result = b * a;
+            emit Trace(pc - 1, 0x12, result);
+            stack.push(result);
+        }
     }
 
     function _execDiv() internal {
@@ -243,7 +251,7 @@ contract VM {
 
     function _execNeg() internal {
         uint256 a = _pop();
-        stack.push(type(uint256).max - a + 1); // two's complement negation
+        unchecked { stack.push(type(uint256).max - a + 1); } // two's complement negation
     }
 
     // ==================== Comparison ====================
@@ -263,25 +271,25 @@ contract VM {
     function _execLt() internal {
         uint256 a = _pop();
         uint256 b = _pop();
-        stack.push(b < a ? 1 : 0);
+        stack.push(int256(b) < int256(a) ? 1 : 0);
     }
 
     function _execGt() internal {
         uint256 a = _pop();
         uint256 b = _pop();
-        stack.push(b > a ? 1 : 0);
+        stack.push(int256(b) > int256(a) ? 1 : 0);
     }
 
     function _execLte() internal {
         uint256 a = _pop();
         uint256 b = _pop();
-        stack.push(b <= a ? 1 : 0);
+        stack.push(int256(b) <= int256(a) ? 1 : 0);
     }
 
     function _execGte() internal {
         uint256 a = _pop();
         uint256 b = _pop();
-        stack.push(b >= a ? 1 : 0);
+        stack.push(int256(b) >= int256(a) ? 1 : 0);
     }
 
     // ==================== Boolean ====================
@@ -350,6 +358,7 @@ contract VM {
     // ==================== Functions ====================
 
     function _execCall() internal {
+        uint256 callPC = pc - 1; // PC of the CALL opcode
         uint16 numArgs = _readUint16();
         uint256 funcOffset = _readUint32();
 
@@ -363,10 +372,12 @@ contract VM {
 
         // Args remain on stack — function body's STORE_VAR handles them
 
+        emit Trace(callPC, 0x60, funcOffset);
         pc = funcOffset;
     }
 
     function _execReturn() internal {
+        uint256 retPC = pc - 1; // PC of the RETURN opcode
         uint256 retVal = _pop();
 
         // Tear frame
@@ -377,6 +388,8 @@ contract VM {
         pc = returnPC[returnPC.length - 1];
         returnPC.pop();
         returnFrame.pop();
+
+        emit Trace(retPC, 0x61, retVal);
 
         // Push return value
         stack.push(retVal);
@@ -435,12 +448,29 @@ contract VM {
         for (uint256 i = numArgs; i > 0; i--) {
             values[i - 1] = _pop();
         }
+        emit Trace(pc - 2, 0x80, values[0]);
         emit Print(values);
     }
 
     function _execEmit() internal {
         uint256 value = _pop();
         emit Result(value);
+    }
+
+    function _execPrintStr() internal {
+        uint256 tableIdx = _pop();
+        string memory s = _getStringFromTable(tableIdx);
+        emit PrintString(s);
+    }
+
+    function _getStringFromTable(uint256 index) internal view returns (string memory) {
+        if (index >= stringTable.length) return "";
+        uint256 len = (uint256(uint8(stringTable[index])) << 8) | uint256(uint8(stringTable[index + 1]));
+        bytes memory result = new bytes(len);
+        for (uint256 i = 0; i < len; i++) {
+            result[i] = stringTable[index + 2 + i];
+        }
+        return string(result);
     }
 
     // ==================== Helpers ====================

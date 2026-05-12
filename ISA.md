@@ -94,10 +94,11 @@ Frame index 0 = global, 1 = current local. Variable index is the slot number.
 
 ### I/O
 
-| Opcode | Name  | Operands | Description |
-|--------|-------|----------|-------------|
-| 0x80   | PRINT | 1 byte (num_args) | Pop N values, emit as Print event |
-| 0x81   | EMIT  | —        | Pop value, emit as Result event |
+| Opcode | Name       | Operands | Description |
+|--------|------------|----------|-------------|
+| 0x80   | PRINT      | 1 byte (num_args) | Pop N values, emit as Print event |
+| 0x81   | EMIT       | —        | Pop value, emit as Result event |
+| 0x82   | PRINT_STR  | —        | Pop string table index, emit as PrintString event |
 
 ### Control
 

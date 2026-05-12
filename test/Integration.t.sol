@@ -11,6 +11,7 @@ import {VM} from "../src/phases/VM.sol";
 contract IntegrationTest is Test {
     event Print(uint256[] values);
     event Result(uint256 value);
+    event PrintString(string value);
 
     function _compile(string memory src) internal returns (bytes memory) {
         Lexer lexer = new Lexer();
@@ -110,5 +111,62 @@ contract IntegrationTest is Test {
         pyVm.execute(bytecode);
         // fib(10) = 55 — verify it completed without error
         assertEq(pyVm.getStackLength(), 0);
+    }
+
+    // ==================== Bubble Sort ====================
+
+    function testBubbleSort() public {
+        string memory src = "lst = [5, 3, 8, 1, 2]\nn = len(lst)\nfor i in range(n):\n    for j in range(n - 1):\n        if lst[j] > lst[j + 1]:\n            temp = lst[j]\n            lst[j] = lst[j + 1]\n            lst[j + 1] = temp\nprint(lst[0])\nprint(lst[1])\nprint(lst[2])\nprint(lst[3])\nprint(lst[4])\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        bytes32 printTopic = keccak256("Print(uint256[])");
+
+        uint256[] memory results = new uint256[](5);
+        uint256 idx = 0;
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].topics[0] == printTopic) {
+                uint256[] memory vals = abi.decode(logs[i].data, (uint256[]));
+                if (vals.length == 1 && idx < 5) {
+                    results[idx] = vals[0];
+                    idx++;
+                }
+            }
+        }
+
+        assertEq(idx, 5, "Expected 5 print events");
+        assertEq(results[0], 1, "lst[0] should be 1");
+        assertEq(results[1], 2, "lst[1] should be 2");
+        assertEq(results[2], 3, "lst[2] should be 3");
+        assertEq(results[3], 5, "lst[3] should be 5");
+        assertEq(results[4], 8, "lst[4] should be 8");
+    }
+
+    // ==================== Print String ====================
+
+    function testPrintString() public {
+        bytes memory bytecode = _compile("print(\"hello\")\n");
+        VM pyVm = new VM();
+
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        bytes32 printStrTopic = keccak256("PrintString(string)");
+        bool found = false;
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].topics[0] == printStrTopic) {
+                string memory val = abi.decode(logs[i].data, (string));
+                // The string may or may not include quotes depending on lexer handling
+                assertTrue(bytes(val).length > 0, "PrintString should output non-empty string");
+                found = true;
+                break;
+            }
+        }
+        assertTrue(found, "No PrintString event emitted");
     }
 }

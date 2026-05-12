@@ -23,6 +23,16 @@ contract CodeGenerator {
     // Backpatching stacks
     uint256[] private jumpPatchOffsets; // bytecode offsets where jump targets need to be filled
 
+    // Loop context for break/continue
+    uint256[] private _breakPatches;      // bytecode offsets of break JUMP operands to backpatch
+    uint256[] private _breakContextStart;  // for each loop nesting, index in _breakPatches where breaks start
+    uint256[] private _continuePatches;    // bytecode offsets of continue JUMP_BACK operands to backpatch
+    uint256[] private _continueContextStart; // for each loop nesting, index in _continuePatches
+    uint256[] private _continueTargets;    // for each loop nesting, the JUMP_BACK target offset (for while loops)
+
+    // For loop temp variable counter (to generate unique names)
+    uint256 private _forTempCounter;
+
     // Parser reference
     Parser private parser;
 
@@ -77,6 +87,7 @@ contract CodeGenerator {
 
     uint8 constant OP_PRINT = 0x80;
     uint8 constant OP_EMIT = 0x81;
+    uint8 constant OP_PRINT_STR = 0x82;
 
     uint8 constant OP_HALT = 0xFF;
 
@@ -148,9 +159,14 @@ contract CodeGenerator {
         } else if (nt == NodeType.PASS_STMT) {
             // no-op
         } else if (nt == NodeType.BREAK_STMT) {
-            // TODO: needs loop context
+            _emitOp(OP_JUMP);
+            _emitUint32(0); // placeholder — backpatched when loop ends
+            _breakPatches.push(code.length - 4);
         } else if (nt == NodeType.CONTINUE_STMT) {
-            // TODO: needs loop context
+            require(_continueContextStart.length > 0, "continue outside loop");
+            _emitOp(OP_JUMP_BACK);
+            _emitUint32(0); // placeholder — backpatched when loop ends
+            _continuePatches.push(code.length - 4);
         } else if (nt == NodeType.CLASS_DEF) {
             _genClassDef(nodeIdx);
         }
@@ -161,6 +177,52 @@ contract CodeGenerator {
         uint256 lhsIdx = _c1(nodeIdx);
         if (_nt(lhsIdx) == NodeType.IDENTIFIER_REF) {
             _genStoreVar(lhsIdx);
+        } else if (_nt(lhsIdx) == NodeType.INDEX_ACCESS) {
+            // list[index] = value → push list, push index, LIST_SET
+            // We already pushed the value. Need to push list and index before it.
+            // But LIST_SET expects: value, index, list on stack (top to bottom).
+            // We have value on top. We need to push list and index BELOW the value.
+            // Use SWAP to rearrange.
+            // Actually, LIST_SET pops value, index, list (top to bottom).
+            // So we need: [list, index, value] on stack before LIST_SET.
+            // We have [value] on stack. Push list and index on top, then swap.
+            // [value] → push list → [value, list] → push index → [value, list, index]
+            // → SWAP → [value, index, list] → hmm that's wrong.
+            // LIST_SET pops: value (top), index (second), list (third)
+            // So we need stack: [..., list, index, value]
+            // We have [value]. Push list, index:
+            // [value] → push list → [value, list] → push index → [value, list, index]
+            // Need to move value to top: use DUP and SWAP tricks.
+            // Actually, let's just emit the list and index first, then the value.
+            // But we already pushed the value! We need to restructure.
+            // The simplest fix: generate list and index first, then value, then LIST_SET.
+            // But _genExpr(_c2) already pushed the value.
+            // Let me just restructure: generate RHS last.
+            // Pop the value, generate list and index, push value back.
+            // This is complex. Let me use a different approach:
+            // Store value in temp, generate list/index, push value, LIST_SET.
+            // Actually, the easiest approach: rearrange the code generation order.
+            // Let me re-emit this properly.
+
+            // We need to undo the value push and redo it in the right order.
+            // Instead, let me change the approach: push list, index, then value.
+            // Since we already pushed value, we need to use SWAP/ROT.
+            // With only SWAP (no ROT), this is tricky. Let me use a temp variable.
+
+            // Store value in a temp variable
+            string memory tempName = string.concat("__asgn", _toString(_forTempCounter));
+            _forTempCounter++;
+            _genStoreVarByName(tempName);
+
+            // Push list and index
+            _genExpr(_c1(lhsIdx)); // list
+            _genExpr(_c2(lhsIdx)); // index
+
+            // Push value
+            _genLoadVarByName(tempName);
+
+            // LIST_SET: pops value, index, list
+            _emitOp(OP_LIST_SET);
         }
     }
 
@@ -265,6 +327,12 @@ contract CodeGenerator {
     }
 
     function _genWhileLoop(uint256 nodeIdx) internal {
+        // Push loop context for break/continue
+        uint256 breakStart = _breakPatches.length;
+        _breakContextStart.push(breakStart);
+        uint256 continueStart = _continuePatches.length;
+        _continueContextStart.push(continueStart);
+
         uint256 loopStart = code.length - HEADER_SIZE;
 
         _genExpr(_c1(nodeIdx)); // condition
@@ -274,24 +342,273 @@ contract CodeGenerator {
 
         if (_c2(nodeIdx) != 0) _genBlock(_c2(nodeIdx));
 
+        // Backpatch continue jumps to loop start (condition)
+        _backpatchContinues(continueStart, loopStart);
+
         _emitOp(OP_JUMP_BACK);
         _emitUint32(loopStart);
 
         _patchUint32(exitJumpOffset, code.length - exitJumpOffset - 4);
+
+        // Backpatch break jumps
+        _backpatchBreaks(breakStart);
+
+        // Pop loop context
+        _breakContextStart.pop();
+        _continueContextStart.pop();
     }
 
     function _genForLoop(uint256 nodeIdx) internal {
-        // Simplified: evaluate iterable, use index-based loop
-        // For now, support: for x in range(n): ...
-        // General iteration requires iterator protocol — basic version only
+        // Desugar for x in range(...) into while loop with index counter
+        // child1 = loop variable (IDENTIFIER_REF)
+        // child2 = iterable (range() call or list)
+        // child3 = body block
 
-        _genExpr(_c2(nodeIdx)); // push iterable
+        uint256 iterIdx = _c2(nodeIdx);
+        uint256 varIdx = _c1(nodeIdx);
+        string memory loopVar = _sv(varIdx);
 
-        // TODO: implement full for-loop with iterator protocol
-        // For now, just pop the iterable and execute body once
-        _emitOp(OP_POP);
+        // Push loop context for break/continue
+        uint256 breakStart = _breakPatches.length;
+        _breakContextStart.push(breakStart);
+        uint256 continueStart = _continuePatches.length;
+        _continueContextStart.push(continueStart);
 
+        if (_nt(iterIdx) == NodeType.FUNC_CALL && keccak256(bytes(_sv(iterIdx))) == keccak256("range")) {
+            _genForRange(nodeIdx, iterIdx, loopVar);
+        } else if (_nt(iterIdx) == NodeType.LIST_LITERAL) {
+            _genForList(nodeIdx, iterIdx, loopVar);
+        } else {
+            // General iterable (variable) — iterate using index
+            _genForIterable(nodeIdx, iterIdx, loopVar);
+        }
+
+        // Pop loop context (break/continue patches already backpatched inside the helpers)
+        _breakContextStart.pop();
+        _continueContextStart.pop();
+    }
+
+    function _genForRange(uint256 nodeIdx, uint256 rangeIdx, string memory loopVar) internal {
+        uint256 argCount = _ac(rangeIdx);
+
+        // Generate unique temp variable names
+        string memory iName = string.concat("__fi", _toString(_forTempCounter));
+        string memory stopName = string.concat("__fs", _toString(_forTempCounter));
+        string memory stepName = string.concat("__fz", _toString(_forTempCounter));
+        _forTempCounter++;
+
+        // Determine start, stop, step based on arg count
+        if (argCount == 1) {
+            // range(n): start=0, stop=n, step=1
+            _genPush(0);
+            _genStoreVarByName(iName);
+            _genExpr(_ea(_ai(rangeIdx)));
+            _genStoreVarByName(stopName);
+            _genPush(1);
+            _genStoreVarByName(stepName);
+        } else if (argCount == 2) {
+            // range(start, stop): step=1
+            _genExpr(_ea(_ai(rangeIdx)));
+            _genStoreVarByName(iName);
+            _genExpr(_ea(_ai(rangeIdx) + 1));
+            _genStoreVarByName(stopName);
+            _genPush(1);
+            _genStoreVarByName(stepName);
+        } else {
+            // range(start, stop, step)
+            _genExpr(_ea(_ai(rangeIdx)));
+            _genStoreVarByName(iName);
+            _genExpr(_ea(_ai(rangeIdx) + 1));
+            _genStoreVarByName(stopName);
+            _genExpr(_ea(_ai(rangeIdx) + 2));
+            _genStoreVarByName(stepName);
+        }
+
+        // Loop start — condition: __i < __stop (or __i > __stop for negative step)
+        uint256 loopStart = code.length - HEADER_SIZE;
+
+        _genLoadVarByName(iName);
+        _genLoadVarByName(stopName);
+        if (argCount == 3) {
+            // For 3-arg range, use GT for negative step, LT for positive step
+            // We emit both LT and GT and let the runtime handle it via conditional
+            // Actually, we need to check the step at compile time if possible.
+            // For simplicity, always use the general approach:
+            // if step < 0: condition is i > stop, else: i < stop
+            // Since we can't know step at compile time, emit a conditional comparison
+            _genLoadVarByName(stepName);
+            _genPush(0);
+            _emitOp(OP_LT); // step < 0?
+            _emitOp(OP_JUMP_IF_FALSE);
+            _emitUint32(0);
+            uint256 positiveStepJump = code.length - 4;
+
+            // Negative step path: i > stop
+            _genLoadVarByName(iName);
+            _genLoadVarByName(stopName);
+            _emitOp(OP_GT);
+            _emitOp(OP_JUMP);
+            _emitUint32(0);
+            uint256 afterPositiveJump = code.length - 4;
+
+            // Positive step path: i < stop (backpatch the JUMP_IF_FALSE)
+            _patchUint32(positiveStepJump, code.length - positiveStepJump - 4);
+            _genLoadVarByName(iName);
+            _genLoadVarByName(stopName);
+            _emitOp(OP_LT);
+
+            // Backpatch the jump to after positive path
+            _patchUint32(afterPositiveJump, code.length - afterPositiveJump - 4);
+        } else {
+            _emitOp(OP_LT);
+        }
+        _emitOp(OP_JUMP_IF_FALSE);
+        _emitUint32(0);
+        uint256 exitJumpOffset = code.length - 4;
+
+        // Assign loop variable: x = __i
+        _genLoadVarByName(iName);
+        _genStoreVarByName(loopVar);
+
+        // Body
         if (_c3(nodeIdx) != 0) _genBlock(_c3(nodeIdx));
+
+        // Backpatch continue jumps to increment code
+        uint256 incTarget = code.length - HEADER_SIZE;
+        uint256 continueStart = _continueContextStart[_continueContextStart.length - 1];
+        _backpatchContinues(continueStart, incTarget);
+
+        // Increment: __i += __step
+        _genLoadVarByName(iName);
+        _genLoadVarByName(stepName);
+        _emitOp(OP_ADD);
+        _genStoreVarByName(iName);
+
+        // Jump back to loop start
+        _emitOp(OP_JUMP_BACK);
+        _emitUint32(loopStart);
+
+        // Exit
+        _patchUint32(exitJumpOffset, code.length - exitJumpOffset - 4);
+
+        // Backpatch break jumps
+        uint256 breakStart = _breakContextStart[_breakContextStart.length - 1];
+        _backpatchBreaks(breakStart);
+    }
+
+    function _genForList(uint256 nodeIdx, uint256 listIdx, string memory loopVar) internal {
+        // Desugar: for x in [a, b, c] → __i=0; __lst=[a,b,c]; while __i<len(__lst): x=__lst[__i]; body; __i+=1
+
+        string memory iName = string.concat("__fi", _toString(_forTempCounter));
+        string memory lstName = string.concat("__fl", _toString(_forTempCounter));
+        _forTempCounter++;
+
+        // Generate list and store
+        _genListLiteral(listIdx);
+        _genStoreVarByName(lstName);
+
+        // Init index
+        _genPush(0);
+        _genStoreVarByName(iName);
+
+        // Loop condition: __i < len(__lst)
+        uint256 loopStart = code.length - HEADER_SIZE;
+
+        _genLoadVarByName(iName);
+        _genLoadVarByName(lstName);
+        _emitOp(OP_LIST_LEN);
+        _emitOp(OP_LT);
+        _emitOp(OP_JUMP_IF_FALSE);
+        _emitUint32(0);
+        uint256 exitJumpOffset = code.length - 4;
+
+        // x = __lst[__i]
+        _genLoadVarByName(lstName);
+        _genLoadVarByName(iName);
+        _emitOp(OP_LIST_GET);
+        _genStoreVarByName(loopVar);
+
+        // Body
+        if (_c3(nodeIdx) != 0) _genBlock(_c3(nodeIdx));
+
+        // Backpatch continue jumps to increment code
+        uint256 incTarget = code.length - HEADER_SIZE;
+        uint256 continueStart = _continueContextStart[_continueContextStart.length - 1];
+        _backpatchContinues(continueStart, incTarget);
+
+        // __i += 1
+        _genLoadVarByName(iName);
+        _genPush(1);
+        _emitOp(OP_ADD);
+        _genStoreVarByName(iName);
+
+        // Jump back
+        _emitOp(OP_JUMP_BACK);
+        _emitUint32(loopStart);
+
+        // Exit
+        _patchUint32(exitJumpOffset, code.length - exitJumpOffset - 4);
+
+        // Backpatch breaks
+        uint256 breakStart = _breakContextStart[_breakContextStart.length - 1];
+        _backpatchBreaks(breakStart);
+    }
+
+    function _genForIterable(uint256 nodeIdx, uint256 iterableIdx, string memory loopVar) internal {
+        // General case: iterate over a variable that holds a list
+        string memory iName = string.concat("__fi", _toString(_forTempCounter));
+        string memory lstName = string.concat("__fl", _toString(_forTempCounter));
+        _forTempCounter++;
+
+        // Store iterable in temp
+        _genExpr(iterableIdx);
+        _genStoreVarByName(lstName);
+
+        // Init index
+        _genPush(0);
+        _genStoreVarByName(iName);
+
+        // Loop condition
+        uint256 loopStart = code.length - HEADER_SIZE;
+
+        _genLoadVarByName(iName);
+        _genLoadVarByName(lstName);
+        _emitOp(OP_LIST_LEN);
+        _emitOp(OP_LT);
+        _emitOp(OP_JUMP_IF_FALSE);
+        _emitUint32(0);
+        uint256 exitJumpOffset = code.length - 4;
+
+        // x = lst[__i]
+        _genLoadVarByName(lstName);
+        _genLoadVarByName(iName);
+        _emitOp(OP_LIST_GET);
+        _genStoreVarByName(loopVar);
+
+        // Body
+        if (_c3(nodeIdx) != 0) _genBlock(_c3(nodeIdx));
+
+        // Backpatch continue jumps to increment code
+        uint256 incTarget = code.length - HEADER_SIZE;
+        uint256 continueStart = _continueContextStart[_continueContextStart.length - 1];
+        _backpatchContinues(continueStart, incTarget);
+
+        // __i += 1
+        _genLoadVarByName(iName);
+        _genPush(1);
+        _emitOp(OP_ADD);
+        _genStoreVarByName(iName);
+
+        // Jump back
+        _emitOp(OP_JUMP_BACK);
+        _emitUint32(loopStart);
+
+        // Exit
+        _patchUint32(exitJumpOffset, code.length - exitJumpOffset - 4);
+
+        // Backpatch breaks
+        uint256 breakStart = _breakContextStart[_breakContextStart.length - 1];
+        _backpatchBreaks(breakStart);
     }
 
     function _genReturnStmt(uint256 nodeIdx) internal {
@@ -390,6 +707,16 @@ contract CodeGenerator {
 
         // Built-in: print
         if (keccak256(bytes(name)) == keccak256("print")) {
+            // Check if single string argument — use PRINT_STR
+            if (argCount == 1) {
+                uint256 argNode = _ea(_ai(nodeIdx));
+                if (_nt(argNode) == NodeType.STRING_LITERAL) {
+                    // Already pushed string table index; use PRINT_STR
+                    _emitOp(OP_PRINT_STR);
+                    _genPushNone();
+                    return;
+                }
+            }
             _emitOp(OP_PRINT);
             _emitByte(uint8(argCount));
             _genPushNone(); // return None so EXPR_STMT can pop it
@@ -488,6 +815,66 @@ contract CodeGenerator {
         }
         stringIndex[key] = idx;
         return idx;
+    }
+
+    // ==================== For-loop & Break/Continue Helpers ====================
+
+    function _genStoreVarByName(string memory name) internal {
+        bytes32 key = keccak256(bytes(name));
+        if (varSlots[currentScope][key] == 0 && varCount[currentScope] == 0) {
+            varCount[currentScope]++;
+            varSlots[currentScope][key] = varCount[currentScope];
+        } else if (varSlots[currentScope][key] == 0) {
+            varCount[currentScope]++;
+            varSlots[currentScope][key] = varCount[currentScope];
+        }
+        uint256 slot = varSlots[currentScope][key];
+        _emitOp(OP_STORE_VAR);
+        _emitByte(uint8(currentScope > 0 ? 1 : 0));
+        _emitByte(uint8(slot));
+    }
+
+    function _genLoadVarByName(string memory name) internal {
+        bytes32 key = keccak256(bytes(name));
+        uint256 slot = varSlots[currentScope][key];
+        if (slot == 0 && varCount[currentScope] == 0) {
+            slot = varSlots[0][key];
+        }
+        _emitOp(OP_LOAD_VAR);
+        _emitByte(uint8(currentScope > 0 ? 1 : 0));
+        _emitByte(uint8(slot));
+    }
+
+    function _backpatchBreaks(uint256 fromIndex) internal {
+        for (uint256 i = fromIndex; i < _breakPatches.length; i++) {
+            _patchUint32(_breakPatches[i], code.length - _breakPatches[i] - 4);
+        }
+        while (_breakPatches.length > fromIndex) {
+            _breakPatches.pop();
+        }
+    }
+
+    function _backpatchContinues(uint256 fromIndex, uint256 target) internal {
+        for (uint256 i = fromIndex; i < _continuePatches.length; i++) {
+            _patchUint32(_continuePatches[i], target);
+        }
+        while (_continuePatches.length > fromIndex) {
+            _continuePatches.pop();
+        }
+    }
+
+    function _toString(uint256 value) internal pure returns (string memory) {
+        if (value == 0) return "0";
+        uint256 temp = value;
+        uint256 digits;
+        while (temp != 0) { digits++; temp /= 10; }
+        bytes memory buffer = new bytes(digits);
+        while (value != 0) {
+            digits--;
+            buffer[digits] = bytes1(uint8(48 + value % 10));
+            value /= 10;
+        }
+        return string(buffer);
     }
 
     // ==================== Bytecode Emission ====================

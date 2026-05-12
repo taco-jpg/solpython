@@ -30,9 +30,11 @@ contract Parser {
     // Each level is a dynamic array of statement node indices.
     // bodyStackIdx[level] = index into bodyStack where that level's array lives.
     // bodyNodeIdx[level] = the AST node index that owns this body.
+    // _bodyNesting is a stack of bodyStack indices tracking current nesting depth.
     uint256[][] private bodyStack;
     uint256[] private bodyStackIdx;
     uint256[] private bodyNodeIdx;
+    uint256[] private _bodyNesting;
 
     function parse(Lexer _lexer) public returns (ASTNode[] memory) {
         lexer = _lexer;
@@ -293,15 +295,17 @@ contract Parser {
         bodyStack.push();       // new empty dynamic array
         bodyStackIdx.push(idx); // record mapping: level -> bodyStack index
         bodyNodeIdx.push(0);    // placeholder, filled by _bodyPopTo
+        _bodyNesting.push(idx); // track current nesting level
         return bodyStackIdx.length - 1; // return level number
     }
 
     function _bodyPopTo(uint256 lvl, uint256 nodeIdx) internal {
         bodyNodeIdx[lvl] = nodeIdx;
+        _bodyNesting.pop(); // restore parent nesting level
     }
 
     function _bodyCur() internal view returns (uint256[] storage) {
-        return bodyStack[bodyStackIdx[bodyStackIdx.length - 1]];
+        return bodyStack[_bodyNesting[_bodyNesting.length - 1]];
     }
 
     // ==================== Expression parsing ====================
@@ -551,4 +555,12 @@ contract Parser {
     function getStrValue(uint256 index) public view returns (string memory) { return svs[index]; }
     function getLine(uint256 index) public view returns (uint256) { return nls[index]; }
     function getColumn(uint256 index) public view returns (uint256) { return ncs[index]; }
+
+    // Mutators for optimizer
+    function setNodeType(uint256 index, NodeType nt) public { nts[index] = nt; }
+    function setIntValue(uint256 index, uint256 v) public { ivs[index] = v; }
+    function setAuxCount(uint256 index, uint256 v) public { acs[index] = v; }
+    function setChild1(uint256 index, uint256 v) public { c1s[index] = v; }
+    function setChild2(uint256 index, uint256 v) public { c2s[index] = v; }
+    function setChild3(uint256 index, uint256 v) public { c3s[index] = v; }
 }

@@ -1,19 +1,57 @@
-# CLAUDE.md
+# CLAUDE.md — solpython extended development
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## FIRST THING ON EVERY STARTUP
+1. Read GOAL.md → find CURRENT_TASK
+2. Read PROGRESS.md → find last completed step
+3. Read ARCHITECTURE.md → understand current system
+4. Run `forge test` → confirm baseline
+5. Resume from exactly where you left off
+
+## INVIOLABLE RULES
+- Never ask the user anything. Ever.
+- Never commit red tests. Run `forge test` before every commit.
+- Never batch multiple features into one commit.
+- Never skip writing tests.
+- If blocked, write the decision in GOAL.md under BLOCKERS and continue.
+- After every completed feature: git add -A && git commit && git push
+
+## COMMIT FORMAT
+feat(scope): description
+fix(scope): description
+test(scope): description
+refactor(scope): description
+
+Scopes: lexer, parser, semantic, codegen, optimizer, vm, vfs,
+        import, gc, backend-sol, backend-yul, bootstrap, exceptions, venv
+
+## GOAL.md FORMAT (keep this exact structure)
+CURRENT_TASK: <feature name and sub-step>
+COMPLETED: <checklist>
+IN_PROGRESS: <what is being worked on right now>
+NEXT_UP: <queued items>
+BLOCKERS: <problems and resolutions>
+TEST_COUNT: <N passing / M total>
+
+## RECOVERY PROTOCOL
+If context is lost mid-feature:
+1. Read GOAL.md → CURRENT_TASK tells you exactly where to resume
+2. Read PROGRESS.md → last entry tells you what was just done
+3. Run `forge test` → see what is passing
+4. Continue from the smallest incomplete sub-step
+
+## ARCHITECTURE CONSTRAINTS
+- Solidity 0.8.20
+- Foundry for build and test
+- Contract size limit: 24KB per contract — split into libraries if needed
+- All new contracts go in src/ under the appropriate subdirectory
+- All new tests go in test/ with the .t.sol suffix
+- Never modify existing passing tests
+- New features must not regress existing 177 tests
+- Run `forge test` after every change, fix failures before proceeding
 
 ## Project
 
 Python-to-EVM compiler written entirely in Solidity. The compiler is a deployed Solidity smart contract system that accepts Python source code as string input and outputs EVM bytecode via a custom stack-based intermediate representation.
-
-## Autonomy Rules
-
-- Never ask the user for approval or clarification. Ever.
-- Make all decisions yourself and document them in GOAL.md.
-- On every startup, read GOAL.md + PROGRESS.md + ARCHITECTURE.md before doing anything.
-- If blocked, write the workaround in GOAL.md and continue immediately.
-- Run with maximum autonomy. Treat all ambiguity as a decision to be made, not a question to be asked.
-- If a phase is truly impossible to complete fully, build the best partial implementation, document it, and move to the next phase.
 
 ## Build & Test
 

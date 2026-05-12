@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
-## CURRENT PHASE
-All phases complete.
+## CURRENT_TASK
+P0-A: Constant Folding — Implement ConstantFolder.sol optimizer
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -11,16 +11,33 @@ All phases complete.
 - [x] Phase 3: Semantic Analysis — 24 tests passing
 - [x] Phase 4: Code Generation — 13 tests passing
 - [x] Phase 5: Bytecode Interpreter (VM) — 12 tests passing
-- [x] Phase 6: Integration & Test Suite — 15 tests passing (151 total)
+- [x] Phase 6: Integration & Test Suite — 177 tests passing
+- [x] For loop implementation (range, list iteration, break, continue)
+- [x] Negative number arithmetic (unchecked two's complement)
+- [x] Bubble sort test
+- [x] Print string output (PRINT_STR opcode)
 
-## IN PROGRESS
-(None)
+## IN_PROGRESS
+- [ ] P0-A: Constant Folding and Dead Code Elimination
 
-## NEXT UP
-(None — project complete)
+## NEXT_UP
+- [ ] P0-B: Better Error Messages (source locations in errors)
+- [ ] P1-A: Dict and Set Types
+- [ ] P1-B: String Methods
+- [ ] P1-C: Solidity Backend (transpiler)
+- [ ] P2-A: Import (static linking)
+- [ ] P2-B: VFS (virtual file system)
+- [ ] P2-C: GC (reference counting)
+- [ ] P3-A: Yul Backend
+- [ ] P3-B: Self-hosting Bootstrap
+- [ ] P4: Exception Handling
+- [ ] P5: Venv
 
 ## BLOCKERS
 (None yet)
+
+## TEST_COUNT
+177 passing / 177 total
 
 ## PHASE DETAILS
 
@@ -57,4 +74,4 @@ Test suite (Foundry) with end-to-end compilation and execution of:
 - Framework: Foundry
 - AST representation: Solidity structs with node type enum and child index arrays
 - Libraries for reusable logic to avoid 24KB limit
-- `string memory` / `bytes memory` conversions for parsing
+- `string memory` / `bytes memory` conversions used freely for parsing

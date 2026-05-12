@@ -13,8 +13,10 @@ A complete Python-to-EVM compiler implemented entirely in Solidity smart contrac
 | SemanticAnalyzer | 24 | All passing |
 | CodeGenerator | 13 | All passing |
 | VM | 12 | All passing |
-| Integration | 15 | All passing |
-| **Total** | **151** | **All passing** |
+| Integration | 17 | All passing |
+| ForLoop | 13 | All passing |
+| Demo | 11 | All passing |
+| **Total** | **177** | **All passing** |
 
 ## Files Created
 
@@ -36,7 +38,9 @@ A complete Python-to-EVM compiler implemented entirely in Solidity smart contrac
 - `test/SemanticAnalyzer.t.sol` — 24 tests
 - `test/CodeGenerator.t.sol` — 13 tests
 - `test/VM.t.sol` — 12 tests
-- `test/Integration.t.sol` — 15 tests
+- `test/Integration.t.sol` — 17 tests (including bubble sort and print string)
+- `test/ForLoop.t.sol` — 13 tests (range, list iteration, nested loops, break, continue)
+- `test/Demo.t.sol` — 11 tests
 
 ### Documentation
 - `CLAUDE.md` — Project guidance
@@ -55,14 +59,16 @@ A complete Python-to-EVM compiler implemented entirely in Solidity smart contrac
 - Variable assignment and augmented assignment (`+=`, `-=`, `*=`, `/=`)
 - `if` / `elif` / `else` control flow
 - `while` loops
+- `for` loops with `range()` (1-3 args) and list iteration
+- `break` and `continue` statements
 - Function definitions with parameters and `return`
 - Recursive function calls
 - List literals and index access
 - Built-in functions: `print`, `len`
 - Class definitions (basic — body executes inline)
+- String output via `print("...")` using PRINT_STR opcode
 
 ### Not Supported
-- `for` loops (code generation stub only)
 - `import` statements
 - Exception handling (`try`/`except`)
 - Dict / set types
@@ -79,3 +85,7 @@ A complete Python-to-EVM compiler implemented entirely in Solidity smart contrac
 4. **Backpatching** for forward jumps — placeholder values emitted during code generation, patched after target offsets are known.
 5. **Mapping-based VM frames** — `mapping(uint256 => mapping(uint256 => uint256))` for frame-local variable storage, avoiding dynamic memory allocation.
 6. **Custom bytecode format** — header with magic bytes "PY", version, code length, followed by code section and string table.
+7. **Body nesting stack** — Parser uses a separate `_bodyNesting` stack to track current nesting level, preventing statements from being pushed to wrong body level after nested blocks return.
+8. **For loop desugaring** — `for x in range(n)` is desugared into index-based while loop with temp variables `__fi`, `__fs`, `__fz`.
+9. **Unchecked arithmetic** — VM uses unchecked blocks for ADD, SUB, MUL, NEG to support two's complement negative numbers.
+10. **Continue backpatching** — Continue targets are backpatched after loop body generation, since the increment code offset is unknown during body generation.
