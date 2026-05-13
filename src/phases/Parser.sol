@@ -36,6 +36,11 @@ contract Parser {
     uint256[] private bodyNodeIdx;
     uint256[] private _bodyNesting;
 
+    // Function default parameters
+    mapping(string => uint256[]) private _funcDefaults;
+    mapping(string => uint256) private _funcDefaultCount;
+    mapping(string => uint256) private _funcParamCount;
+
     function parse(Lexer _lexer) public returns (ASTNode[] memory) {
         lexer = _lexer;
         tokenCount = _lexer.getTokenCount();
@@ -98,16 +103,7 @@ contract Parser {
         string memory name = _lex();
         _adv();
         _exp(TokenType.LPAREN);
-
-        uint256 pc = 0;
-        while (_cur() != TokenType.RPAREN && !_end()) {
-            string memory param = _lex();
-            _exp(TokenType.IDENTIFIER);
-            exprAux.push(_emit(NodeType.IDENTIFIER_REF, 0, 0, 0, 0, 0, 0, param, _ln(), _col()));
-            pc++;
-            if (_cur() == TokenType.COMMA) _adv();
-        }
-        uint256 ps = exprAux.length - pc;
+        _parseFuncParams(name);
         _exp(TokenType.RPAREN);
         _skipNL();
         _exp(TokenType.COLON);
@@ -115,7 +111,31 @@ contract Parser {
         uint256 lvl = _bodyPush();
         uint256 body = _suite();
         _bodyPopTo(lvl, body);
-        return _emit(NodeType.FUNCTION_DEF, 0, body, 0, ps, pc, 0, name, ln, col);
+        return _emit(NodeType.FUNCTION_DEF, 0, body, 0, _funcPs, _funcPc, _funcDefaultCount[name], name, ln, col);
+    }
+
+    uint256 private _funcPs;
+    uint256 private _funcPc;
+
+    function _parseFuncParams(string memory name) internal {
+        uint256 pc = 0;
+        uint256 defaultCnt = 0;
+        while (_cur() != TokenType.RPAREN && !_end()) {
+            string memory param = _lex();
+            _exp(TokenType.IDENTIFIER);
+            exprAux.push(_emit(NodeType.IDENTIFIER_REF, 0, 0, 0, 0, 0, 0, param, _ln(), _col()));
+            pc++;
+            if (_cur() == TokenType.OP_ASSIGN) {
+                _adv();
+                _funcDefaults[name].push(_emit(NodeType.DEFAULT_VALUE, _expr(), 0, 0, 0, 0, 0, "", _ln(), _col()));
+                defaultCnt++;
+            }
+            if (_cur() == TokenType.COMMA) _adv();
+        }
+        _funcPs = exprAux.length - pc;
+        _funcPc = pc;
+        _funcDefaultCount[name] = defaultCnt;
+        _funcParamCount[name] = pc;
     }
 
     function _ifStmt() internal returns (uint256) {
@@ -880,6 +900,10 @@ contract Parser {
     function getStrValue(uint256 index) public view returns (string memory) { return svs[index]; }
     function getLine(uint256 index) public view returns (uint256) { return nls[index]; }
     function getColumn(uint256 index) public view returns (uint256) { return ncs[index]; }
+
+    function getFuncDefaultCount(string memory funcName) public view returns (uint256) { return _funcDefaultCount[funcName]; }
+    function getFuncParamCount(string memory funcName) public view returns (uint256) { return _funcParamCount[funcName]; }
+    function getFuncDefaultNode(string memory funcName, uint256 index) public view returns (uint256) { return _funcDefaults[funcName][index]; }
 
     // Mutators for optimizer
     function setNodeType(uint256 index, NodeType nt) public { nts[index] = nt; }

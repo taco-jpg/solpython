@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-FEAT-3: Multiple Assignment
+FEAT-5: Keyword Arguments
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -35,6 +35,8 @@ FEAT-3: Multiple Assignment
 - [x] For Loop Variable Range (5 tests, range with variable/expr args all working)
 - [x] Negative Indexing (8 tests, lst[-1]/s[-1], fixed list element ordering bug)
 - [x] Tuple Type (8 tests, tuple literals, indexing, unpacking, swap pattern)
+- [x] Multiple Assignment (covered by tuple unpacking: a, b = 1, 2)
+- [x] Default Parameters (7 tests, def f(x, y=10), expression defaults, partial/override)
 
 ## IN_PROGRESS
 (None — all features complete)
@@ -46,7 +48,7 @@ FEAT-3: Multiple Assignment
 (None yet)
 
 ## TEST_COUNT
-472 passing / 472 total
+479 passing / 479 total
 
 ## PHASE DETAILS
 

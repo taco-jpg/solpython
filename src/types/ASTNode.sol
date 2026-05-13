@@ -58,7 +58,10 @@ enum NodeType {
     SELF_ASSIGN,        // self.x = val  strValue=attr_name, child1=value (inside method body)
 
     // Tuples
-    TUPLE_LITERAL       // (a, b, c)  exprAux = [e0, e1, ...]
+    TUPLE_LITERAL,      // (a, b, c)  exprAux = [e0, e1, ...]
+
+    // Default parameters
+    DEFAULT_VALUE       // sentinel for default param: child1 = default expr node
 }
 
 enum BinaryOpType {

@@ -1110,11 +1110,27 @@ contract CodeGenerator {
             return;
         }
 
-        // User function
+        // User function — fill in default parameters if needed
+        argCount = _fillDefaults(name, argCount);
+
         _emitOp(OP_CALL);
         _emitUint16(uint16(argCount));
         _emitUint32(0); // placeholder — backpatch after all functions are defined
         _backpatchFunc(name, code.length - 4);
+    }
+
+    function _fillDefaults(string memory name, uint256 argCount) internal returns (uint256) {
+        uint256 expected = parser.getFuncParamCount(name);
+        uint256 defCnt = parser.getFuncDefaultCount(name);
+        if (expected == 0 || argCount >= expected || defCnt == 0) return argCount;
+        uint256 firstDef = expected - defCnt;
+        for (uint256 i = argCount; i < expected; i++) {
+            uint256 di = i - firstDef;
+            if (di < defCnt) {
+                _genExpr(_c1(parser.getFuncDefaultNode(name, di)));
+            }
+        }
+        return expected;
     }
 
     function _genListLiteral(uint256 nodeIdx) internal {
