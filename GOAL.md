@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-FEAT-8: For...Else and While...Else
+FEAT-9: Enumerate and Zip builtins
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -40,6 +40,7 @@ FEAT-8: For...Else and While...Else
 - [x] Keyword Arguments (7 tests, positional + keyword mix, reorder, defaults + kwargs)
 - [x] Ternary Expression (7 tests, a if cond else b, nested, in expressions)
 - [x] Chained Comparison (8 tests, a < b < c, 4 operands, mixed ops)
+- [x] For...Else and While...Else (7 tests, else executes on normal exit, skipped by break)
 
 ## IN_PROGRESS
 (None — all features complete)
@@ -51,7 +52,7 @@ FEAT-8: For...Else and While...Else
 (None yet)
 
 ## TEST_COUNT
-501 passing / 501 total
+508 passing / 508 total
 
 ## PHASE DETAILS
 

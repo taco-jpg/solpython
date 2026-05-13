@@ -196,11 +196,16 @@ contract Parser {
         uint256 lvl = _bodyPush();
         uint256 body = _suite();
         _bodyPopTo(lvl, body);
-        return _emit(NodeType.WHILE_LOOP, cond, body, 0, 0, 0, 0, "", ln, col);
+        uint256 elseBody = _parseElseClause();
+        return _emit(NodeType.WHILE_LOOP, cond, body, elseBody, 0, 0, 0, "", ln, col);
     }
 
+    uint256 private _forElseBody;
+    uint256 private _forLn;
+    uint256 private _forCol;
+
     function _forLoop() internal returns (uint256) {
-        uint256 ln = _ln(); uint256 col = _col();
+        _forLn = _ln(); _forCol = _col();
         _adv();
         string memory varName = _lex();
         _exp(TokenType.IDENTIFIER);
@@ -212,8 +217,19 @@ contract Parser {
         uint256 lvl = _bodyPush();
         uint256 body = _suite();
         _bodyPopTo(lvl, body);
-        uint256 varNode = _emit(NodeType.IDENTIFIER_REF, 0, 0, 0, 0, 0, 0, varName, ln, col);
-        return _emit(NodeType.FOR_LOOP, varNode, iter, body, 0, 0, 0, "", ln, col);
+        _forElseBody = _parseElseClause();
+        return _emit(NodeType.FOR_LOOP, _emit(NodeType.IDENTIFIER_REF, 0, 0, 0, 0, 0, 0, varName, _forLn, _forCol), iter, body, _forElseBody, 0, 0, "", _forLn, _forCol);
+    }
+
+    function _parseElseClause() internal returns (uint256) {
+        _skipNL();
+        if (_cur() != TokenType.KW_ELSE) return 0;
+        _adv();
+        _exp(TokenType.COLON);
+        uint256 lvl = _bodyPush();
+        uint256 body = _suite();
+        _bodyPopTo(lvl, body);
+        return body;
     }
 
     function _retStmt() internal returns (uint256) {

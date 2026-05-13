@@ -425,9 +425,13 @@ contract CodeGenerator {
         _emitOp(OP_JUMP_BACK);
         _emitUint32(loopStart);
 
+        // Exit: normal exit lands here (start of else block if present)
         _patchUint32(exitJumpOffset, code.length - exitJumpOffset - 4);
 
-        // Backpatch break jumps
+        // Else block (executes on normal exit, skipped by break)
+        if (_c3(nodeIdx) != 0) _genBlock(_c3(nodeIdx));
+
+        // Backpatch break jumps (land after else block)
         _backpatchBreaks(breakStart);
 
         // Pop loop context
@@ -451,13 +455,15 @@ contract CodeGenerator {
         uint256 continueStart = _continuePatches.length;
         _continueContextStart.push(continueStart);
 
+        uint256 elseBody = _ai(nodeIdx); // auxIndex = else body (0 if none)
+
         if (_nt(iterIdx) == NodeType.FUNC_CALL && keccak256(bytes(_sv(iterIdx))) == keccak256("range")) {
-            _genForRange(nodeIdx, iterIdx, loopVar);
+            _genForRange(nodeIdx, iterIdx, loopVar, elseBody);
         } else if (_nt(iterIdx) == NodeType.LIST_LITERAL) {
-            _genForList(nodeIdx, iterIdx, loopVar);
+            _genForList(nodeIdx, iterIdx, loopVar, elseBody);
         } else {
             // General iterable (variable) — iterate using index
-            _genForIterable(nodeIdx, iterIdx, loopVar);
+            _genForIterable(nodeIdx, iterIdx, loopVar, elseBody);
         }
 
         // Pop loop context (break/continue patches already backpatched inside the helpers)
@@ -465,7 +471,7 @@ contract CodeGenerator {
         _continueContextStart.pop();
     }
 
-    function _genForRange(uint256 nodeIdx, uint256 rangeIdx, string memory loopVar) internal {
+    function _genForRange(uint256 nodeIdx, uint256 rangeIdx, string memory loopVar, uint256 elseBody) internal {
         uint256 argCount = _ac(rangeIdx);
 
         // Generate unique temp variable names
@@ -565,15 +571,18 @@ contract CodeGenerator {
         _emitOp(OP_JUMP_BACK);
         _emitUint32(loopStart);
 
-        // Exit
+        // Exit: normal exit lands here (start of else block if present)
         _patchUint32(exitJumpOffset, code.length - exitJumpOffset - 4);
 
-        // Backpatch break jumps
+        // Else block (executes on normal exit, skipped by break)
+        if (elseBody != 0) _genBlock(elseBody);
+
+        // Backpatch break jumps (land after else block)
         uint256 breakStart = _breakContextStart[_breakContextStart.length - 1];
         _backpatchBreaks(breakStart);
     }
 
-    function _genForList(uint256 nodeIdx, uint256 listIdx, string memory loopVar) internal {
+    function _genForList(uint256 nodeIdx, uint256 listIdx, string memory loopVar, uint256 elseBody) internal {
         // Desugar: for x in [a, b, c] → __i=0; __lst=[a,b,c]; while __i<len(__lst): x=__lst[__i]; body; __i+=1
 
         string memory iName = string.concat("__fi", _toString(_forTempCounter));
@@ -623,15 +632,18 @@ contract CodeGenerator {
         _emitOp(OP_JUMP_BACK);
         _emitUint32(loopStart);
 
-        // Exit
+        // Exit: normal exit lands here (start of else block if present)
         _patchUint32(exitJumpOffset, code.length - exitJumpOffset - 4);
 
-        // Backpatch breaks
+        // Else block (executes on normal exit, skipped by break)
+        if (elseBody != 0) _genBlock(elseBody);
+
+        // Backpatch break jumps (land after else block)
         uint256 breakStart = _breakContextStart[_breakContextStart.length - 1];
         _backpatchBreaks(breakStart);
     }
 
-    function _genForIterable(uint256 nodeIdx, uint256 iterableIdx, string memory loopVar) internal {
+    function _genForIterable(uint256 nodeIdx, uint256 iterableIdx, string memory loopVar, uint256 elseBody) internal {
         // General case: iterate over a variable that holds a list
         string memory iName = string.concat("__fi", _toString(_forTempCounter));
         string memory lstName = string.concat("__fl", _toString(_forTempCounter));
@@ -680,10 +692,13 @@ contract CodeGenerator {
         _emitOp(OP_JUMP_BACK);
         _emitUint32(loopStart);
 
-        // Exit
+        // Exit: normal exit lands here (start of else block if present)
         _patchUint32(exitJumpOffset, code.length - exitJumpOffset - 4);
 
-        // Backpatch breaks
+        // Else block (executes on normal exit, skipped by break)
+        if (elseBody != 0) _genBlock(elseBody);
+
+        // Backpatch break jumps (land after else block)
         uint256 breakStart = _breakContextStart[_breakContextStart.length - 1];
         _backpatchBreaks(breakStart);
     }
