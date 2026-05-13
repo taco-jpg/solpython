@@ -726,3 +726,38 @@ Overflow detection only applies to arithmetic results, not to integer literals p
 
 ### Test Results
 601/601 passing across 44 suites. +6 new tests, 0 regressions.
+
+## 2026-05-12 — FIX-5: Float tag false positives on extreme values
+
+### Root Cause
+_classifyType did not check for tagged floats, so float values (tag 5 at bits 252-255) were classified as TYPE_STR because they exceeded STATIC_STR_OFFSET (2^62).
+
+### Approach
+Verified tag space is disjoint after FIX-1 through FIX-4. Added `_isFloat` check to _classifyType before the string check. Floats are reported as TYPE_INT (since they're fixed-point, not IEEE 754). Also added tag space verification tests for all types.
+
+### Files Changed
+- `src/phases/VM.sol` — Added float check in _classifyType
+- `test/TypeClassify.t.sol` — 6 new tests
+
+### Tests Added
+6 tests (tag space verification for all types):
+- type(3.14) → TYPE_INT (fixed-point float)
+- type(100) → TYPE_INT
+- type(None) → TYPE_NONE
+- type(True) → TYPE_BOOL
+- type([1,2,3]) → TYPE_LIST
+- type("hello") → TYPE_STR
+
+### Tag Space Summary (after FIX-1 through FIX-5)
+- Float: 5 << 252 to 6 << 252 - 1
+- None: 6 << 252
+- Bool: 2^66, 2^66+1
+- Lists: 0 to 2^60 - 1 (tracked by isList)
+- Dicts: 2^60 to 2^61 - 1
+- Sets: 2^61 to 2^62 - 1
+- Strings: 2^62+
+- Integers: -2^62 to 2^62 - 1 (with overflow checks)
+All disjoint. No collisions.
+
+### Test Results
+607/607 passing across 44 suites. +6 new tests, 0 regressions.

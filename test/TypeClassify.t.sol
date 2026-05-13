@@ -395,4 +395,62 @@ contract TypeClassifyTest is Test {
         pyVm.execute(bytecode);
         assertEq(_getLastPrint(), 0, "type(42) should be TYPE_INT");
     }
+
+    // ==================== FIX-5: Tag space verification ====================
+
+    function testFloatType() public {
+        string memory src = "print(type(3.14))\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 0, "type(3.14) reports as TYPE_INT (float is fixed-point)");
+    }
+
+    function testTagSpaceInt() public {
+        // Integers should not collide with any tag
+        string memory src = "print(type(100))\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 0, "type(100) should be TYPE_INT");
+    }
+
+    function testTagSpaceNone() public {
+        // None should be distinct from all other types
+        string memory src = "print(type(None))\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 4, "type(None) should be TYPE_NONE");
+    }
+
+    function testTagSpaceBool() public {
+        string memory src = "print(type(True))\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 3, "type(True) should be TYPE_BOOL");
+    }
+
+    function testTagSpaceList() public {
+        string memory src = "print(type([1, 2, 3]))\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 2, "type([1,2,3]) should be TYPE_LIST");
+    }
+
+    function testTagSpaceStr() public {
+        string memory src = "print(type(\"hello\"))\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 1, "type(\"hello\") should be TYPE_STR");
+    }
 }

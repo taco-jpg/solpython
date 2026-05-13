@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-FIX-5: Float tag false positives on extreme values
+FIX-6: Exception handling — multiple except & finally JUMP backpatch
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -60,7 +60,7 @@ FIX-5: Float tag false positives on extreme values
 (None yet)
 
 ## TEST_COUNT
-601 passing / 601 total
+607 passing / 607 total
 
 ## PHASE DETAILS
 
