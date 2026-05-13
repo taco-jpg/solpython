@@ -43,6 +43,7 @@ FEAT-11: Map and Filter builtins
 - [x] For...Else and While...Else (7 tests, else executes on normal exit, skipped by break)
 - [x] Enumerate and Zip builtins (7 tests, tuple for-loop targets, enumerate/zip desugaring)
 - [x] Isinstance and Type builtins (9 tests, isinstance/typeof opcodes, type classification)
+- [x] Map and Filter builtins (8 tests, OP_LIST_APPEND, desugared for-loop, list building)
 
 ## IN_PROGRESS
 (None — all features complete)
@@ -54,7 +55,7 @@ FEAT-11: Map and Filter builtins
 (None yet)
 
 ## TEST_COUNT
-524 passing / 524 total
+532 passing / 532 total
 
 ## PHASE DETAILS
 

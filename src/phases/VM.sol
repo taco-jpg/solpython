@@ -114,6 +114,7 @@ contract VM {
     uint8 constant OP_LIST_GET = 0x71;
     uint8 constant OP_LIST_SET = 0x72;
     uint8 constant OP_LIST_LEN = 0x73;
+    uint8 constant OP_LIST_APPEND = 0x76; // Pop value and list ID, append value
 
     uint8 constant OP_MAKE_TUPLE = 0x74;  // Create tuple from TOS elements
     uint8 constant OP_TUPLE_GET = 0x75;   // Get element from tuple by index
@@ -274,6 +275,7 @@ contract VM {
             else if (op == OP_CALL_METHOD) _execCallMethod();
             else if (op == OP_ISINSTANCE) _execIsInstance();
             else if (op == OP_TYPEOF) _execTypeOf();
+            else if (op == OP_LIST_APPEND) _execListAppend();
             else if (op == OP_HALT) break;
             else {
                 emit VMError("Unknown opcode", pc - 1);
@@ -1699,5 +1701,11 @@ contract VM {
     function _execTypeOf() internal {
         uint256 val = _pop();
         stack.push(_classifyType(val));
+    }
+
+    function _execListAppend() internal {
+        uint256 val = _pop();
+        uint256 listId = _pop();
+        lists[listId].push(val);
     }
 }

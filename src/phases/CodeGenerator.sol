@@ -139,6 +139,7 @@ contract CodeGenerator {
 
     uint8 constant OP_ISINSTANCE = 0xE0;
     uint8 constant OP_TYPEOF = 0xE1;
+    uint8 constant OP_LIST_APPEND = 0x76;
 
     uint8 constant OP_HALT = 0xFF;
 
@@ -857,6 +858,147 @@ contract CodeGenerator {
         _backpatchBreaks(breakStart);
     }
 
+    function _genMapBuiltin(uint256 nodeIdx) internal {
+        // map(func, iterable) → desugar into for-loop building result list
+        // nodeIdx = FUNC_CALL "map" with 2 args: arg0=func, arg1=iterable
+        uint256 argStart = _ai(nodeIdx);
+        uint256 funcArg = _ea(argStart);     // function name (IDENTIFIER_REF)
+        uint256 iterArg = _ea(argStart + 1); // iterable
+
+        string memory funcName = _sv(funcArg);
+
+        string memory iName = string.concat("__mi", _toString(_forTempCounter));
+        string memory lstName = string.concat("__ml", _toString(_forTempCounter));
+        string memory resName = string.concat("__mr", _toString(_forTempCounter));
+        _forTempCounter++;
+
+        // Store iterable in temp
+        _genExpr(iterArg);
+        _genStoreVarByName(lstName);
+
+        // Create empty result list
+        _emitOp(OP_MAKE_LIST);
+        _emitUint16(0);
+        _genStoreVarByName(resName);
+
+        // Init counter
+        _genPush(0);
+        _genStoreVarByName(iName);
+
+        // Loop condition: i < len(lst)
+        uint256 loopStart = code.length - HEADER_SIZE;
+        _genLoadVarByName(iName);
+        _genLoadVarByName(lstName);
+        _emitOp(OP_LIST_LEN);
+        _emitOp(OP_LT);
+        _emitOp(OP_JUMP_IF_FALSE);
+        _emitUint32(0);
+        uint256 exitJumpOffset = code.length - 4;
+
+        // Body: result.append(f(lst[i]))
+        _genLoadVarByName(resName);          // push result list ID
+        _genLoadVarByName(lstName);          // push lst
+        _genLoadVarByName(iName);            // push i
+        _emitOp(OP_LIST_GET);               // lst[i]
+        _emitOp(OP_CALL);                    // call f with 1 arg
+        _emitUint16(1);
+        _emitUint32(0);                      // placeholder
+        _backpatchFunc(funcName, code.length - 4);
+        _emitOp(OP_LIST_APPEND);             // append return value to result
+
+        // i += 1
+        _genLoadVarByName(iName);
+        _genPush(1);
+        _emitOp(OP_ADD);
+        _genStoreVarByName(iName);
+
+        // Jump back
+        _emitOp(OP_JUMP_BACK);
+        _emitUint32(loopStart);
+
+        // Exit
+        _patchUint32(exitJumpOffset, code.length - exitJumpOffset - 4);
+
+        // Push result list onto stack
+        _genLoadVarByName(resName);
+    }
+
+    function _genFilterBuiltin(uint256 nodeIdx) internal {
+        // filter(func, iterable) → desugar into for-loop building result list
+        // nodeIdx = FUNC_CALL "filter" with 2 args: arg0=func, arg1=iterable
+        uint256 argStart = _ai(nodeIdx);
+        uint256 funcArg = _ea(argStart);     // function name (IDENTIFIER_REF)
+        uint256 iterArg = _ea(argStart + 1); // iterable
+
+        string memory funcName = _sv(funcArg);
+
+        string memory iName = string.concat("__fi", _toString(_forTempCounter));
+        string memory lstName = string.concat("__fl", _toString(_forTempCounter));
+        string memory resName = string.concat("__fr", _toString(_forTempCounter));
+        _forTempCounter++;
+
+        // Store iterable in temp
+        _genExpr(iterArg);
+        _genStoreVarByName(lstName);
+
+        // Create empty result list
+        _emitOp(OP_MAKE_LIST);
+        _emitUint16(0);
+        _genStoreVarByName(resName);
+
+        // Init counter
+        _genPush(0);
+        _genStoreVarByName(iName);
+
+        // Loop condition: i < len(lst)
+        uint256 loopStart = code.length - HEADER_SIZE;
+        _genLoadVarByName(iName);
+        _genLoadVarByName(lstName);
+        _emitOp(OP_LIST_LEN);
+        _emitOp(OP_LT);
+        _emitOp(OP_JUMP_IF_FALSE);
+        _emitUint32(0);
+        uint256 exitJumpOffset = code.length - 4;
+
+        // Body: if f(lst[i]): result.append(lst[i])
+        _genLoadVarByName(lstName);          // push lst
+        _genLoadVarByName(iName);            // push i
+        _emitOp(OP_LIST_GET);               // lst[i] — arg for f
+        _emitOp(OP_CALL);                    // call f with 1 arg
+        _emitUint16(1);
+        _emitUint32(0);                      // placeholder
+        _backpatchFunc(funcName, code.length - 4);
+        _emitOp(OP_JUMP_IF_FALSE);           // skip if f returns falsy
+        _emitUint32(0);
+        uint256 skipOffset = code.length - 4;
+
+        // Append element to result
+        _genLoadVarByName(resName);          // push result list ID
+        _genLoadVarByName(lstName);          // push lst
+        _genLoadVarByName(iName);            // push i
+        _emitOp(OP_LIST_GET);               // lst[i]
+        _emitOp(OP_LIST_APPEND);             // append element to result
+
+        // Backpatch skip jump
+        _patchUint32(skipOffset, code.length - skipOffset - 4);
+
+        // i += 1
+        _genLoadVarByName(iName);
+        _genPush(1);
+        _emitOp(OP_ADD);
+        _genStoreVarByName(iName);
+
+        // Jump back
+        _emitOp(OP_JUMP_BACK);
+        _emitUint32(loopStart);
+
+        // Exit
+        _patchUint32(exitJumpOffset, code.length - exitJumpOffset - 4);
+
+        // Push result list onto stack
+        _genLoadVarByName(resName);
+    }
+
     function _genReturnStmt(uint256 nodeIdx) internal {
         if (_c1(nodeIdx) != 0) {
             _genExpr(_c1(nodeIdx));
@@ -1270,6 +1412,18 @@ contract CodeGenerator {
         // Built-in: type(x) — return type tag as int
         if (keccak256(bytes(name)) == keccak256("type") && argCount == 1) {
             _emitOp(OP_TYPEOF);
+            return;
+        }
+
+        // Built-in: map(func, iterable) — apply func to each element, collect results
+        if (keccak256(bytes(name)) == keccak256("map") && argCount == 2) {
+            _genMapBuiltin(nodeIdx);
+            return;
+        }
+
+        // Built-in: filter(func, iterable) — keep elements where func returns truthy
+        if (keccak256(bytes(name)) == keccak256("filter") && argCount == 2) {
+            _genFilterBuiltin(nodeIdx);
             return;
         }
 
