@@ -453,4 +453,42 @@ contract TypeClassifyTest is Test {
         pyVm.execute(bytecode);
         assertEq(_getLastPrint(), 1, "type(\"hello\") should be TYPE_STR");
     }
+
+    // ==================== FIX-3/4 closure: negative int classification ====================
+
+    function testNegativeIntIsInt() public {
+        string memory src = "print(isinstance(-1, int))\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 1, "-1 should be int");
+    }
+
+    function testNegativeIntNotNone() public {
+        string memory src = "x = -1\nprint(x == None)\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 0, "-1 should not equal None");
+    }
+
+    function testLargeNegativeIsInt() public {
+        string memory src = "print(isinstance(-1000000, int))\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 1, "-1000000 should be int");
+    }
+
+    function testNegativeIntArithmetic() public {
+        string memory src = "x = -1\nprint(x + 1)\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 0, "-1 + 1 = 0");
+    }
 }

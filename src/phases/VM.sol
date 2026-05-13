@@ -1816,6 +1816,8 @@ contract VM {
         if (_isBoolTagged(val)) return TYPE_BOOL;
         // Tagged floats: FLOAT_TAG at bits 252-255
         if (_isFloat(val)) return TYPE_INT; // fixed-point float, report as int for now
+        // Negative integers (two's complement): val >= INT_MIN means val in [-2^62, -1]
+        if (val >= INT_MIN) return TYPE_INT;
         // Check high-ID types first (no overlap with ints)
         if (val >= STATIC_STR_OFFSET || val >= RUNTIME_STR_OFFSET) return TYPE_STR;
         if (val >= DICT_ID_OFFSET && val < DICT_ID_OFFSET + nextDictId) return TYPE_DICT;
