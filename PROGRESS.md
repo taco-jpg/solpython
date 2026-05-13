@@ -524,3 +524,83 @@
 
 ### Test Results
 395/395 passing across 21 suites. New tests: create venv, default settings, set optimization level, invalid optimization level, set GC, set backend, write/read, file exists, get VFS, add module path, get module paths, resolve module direct, resolve with .py extension, resolve in path, resolve not found, venv with compiler, venv multiple modules.
+
+---
+
+## 2026-05-12 — Feature Queue Completion (FEAT-5 through FEAT-16)
+
+### Summary
+Completed 12 features in a single session, bringing the test count from 524 to 565.
+
+### Features Implemented
+
+#### FEAT-5: Keyword Arguments (7 tests)
+- Parser: `_callArgs` storage array with `myStart` position tracking for nested call argument isolation
+- CodeGenerator: `_genFuncCallWithKwargs` reorders args to match param order using `_kwargOrder`
+- Tests: positional + keyword mix, reorder, defaults + kwargs
+
+#### FEAT-6: Ternary Expression (7 tests)
+- Parser: `TERNARY_EXPR` node with true_val, condition, false_val children
+- CodeGenerator: JUMP_IF_FALSE/JUMP backpatch pattern
+- Tests: basic, nested, in expressions
+
+#### FEAT-7: Chained Comparison (8 tests)
+- Parser: `_cmpChain` helper for multi-operand comparisons (e.g., `a < b < c`)
+- Generates BOOL_AND of individual comparisons
+- Tests: 4 operands, mixed ops
+
+#### FEAT-8: For...Else and While...Else (7 tests)
+- Parser: `_parseElseClause` for else block in loops
+- CodeGenerator: else block generated before `_backpatchBreaks` (normal exit executes, break skips)
+- Tests: else executes on normal exit, skipped by break
+
+#### FEAT-9: Enumerate and Zip builtins (7 tests)
+- Parser: `_parseForTarget` for tuple targets in for loops
+- CodeGenerator: `_genForEnumerate` (counter-based, unpack index+element), `_genForZip` (counter-based, min-length with OP_AND)
+- Tests: tuple for-loop targets, enumerate/zip desugaring
+
+#### FEAT-10: Isinstance and Type builtins (9 tests)
+- VM: `_classifyType`, `_execIsInstance`, `_execTypeOf` with type constants (TYPE_INT=0 through TYPE_TUPLE=7)
+- CodeGenerator: isinstance/type builtin detection in `_genFuncCall`
+- Tests: isinstance for int/str/list/None/mismatch, type for int/str/list/None
+
+#### FEAT-11: Map and Filter builtins (8 tests)
+- VM: `OP_LIST_APPEND` (0x76) opcode
+- CodeGenerator: `_genMapBuiltin` and `_genFilterBuiltin` desugar to counter-based for loops building result lists
+- Tests: double, square, empty, single, positive filter, even filter, filter empty/all
+
+#### FEAT-12: String Formatting (8 tests)
+- Lexer: `FSTRING` token type, `_readFString()` for f-string literals
+- Parser: `FSTRING_EXPR` node type, `_parseFString()`
+- CodeGenerator: `_genFStringExpr` splits on `{var}` and concatenates parts with OP_STR_CONCAT
+- `%` formatting: `_genStringFormat` handles `%s`/`%d` with OP_INT_TO_STR conversion
+- Tests: simple, multiple vars, text only, var only, with calculation, %s, %d, text only
+
+#### FEAT-13: Dict Methods (7 tests)
+- VM: `OP_DICT_VALUES` (0x9A), `OP_DICT_ITEMS` (0x9B), `OP_DICT_GET_DEFAULT` (0x9C), `OP_DICT_UPDATE` (0x9D)
+- CodeGenerator: dict method detection in METHOD_CALL handling
+- All new objects GC-registered
+- Tests: keys, values, items, get existing, get default, update, update overwrite
+
+#### FEAT-14: Sorted and Reversed (7 tests)
+- VM: `OP_SORTED` (0x77) with bubble sort, `OP_REVERSED` (0x78)
+- CodeGenerator: sorted/reversed builtin detection in `_genFuncCall`
+- Tests: basic sorted, empty, single, preserves original, basic reversed, empty, single
+
+#### FEAT-15: VFS Directory Structure (8 tests)
+- VFS: `mkdir`, `rmdir`, `listDir`, `isDir`, `writeFileInDir`, `readFileInDir`, `normalizePath`
+- Directory tracking: `directories` mapping, `dirChildren` mapping
+- Tests: mkdir, mkdir revert, rmdir, rmdir not empty, write/read in dir, list dir, nested dirs, normalize path
+
+#### FEAT-16: Global and Nonlocal (3 tests)
+- Lexer: `KW_GLOBAL`, `KW_NONLOCAL` token types
+- Parser: `GLOBAL_STMT`, `NONLOCAL_STMT` node types, `_globalStmt()`, `_nonlocalStmt()`
+- SemanticAnalyzer: `scopeIsLocal` cleared for global/nonlocal vars, `_defineSymbolInScope` helper
+- CodeGenerator: `_globalVars`/`_nonlocalVars` tracking, scope-aware `_genLoadVar`/`_genStoreVar`
+- Tests: global read, global write, global multiple
+
+### Critical Bug Fix
+**exprAux interleaving bug**: `_funcCall` computed `argStart = exprAux.length - argCnt` but list literal arguments pushed elements to exprAux between argument node pushes. Fixed by using `_callArgs` storage array with `myStart` position tracking.
+
+### Test Results
+565/565 passing across 42 suites.
