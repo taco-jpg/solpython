@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-(None — all features complete)
+FIX-2: _classifyType returns TYPE_BOOL for 0 and 1
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -60,7 +60,7 @@
 (None yet)
 
 ## TEST_COUNT
-565 passing / 565 total
+571 passing / 571 total
 
 ## PHASE DETAILS
 

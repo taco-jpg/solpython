@@ -21,6 +21,7 @@ contract VM {
 
     // Lists: listId => elements (IDs 0 to 2^60 - 1)
     mapping(uint256 => uint256[]) private lists;
+    mapping(uint256 => bool) private isList;
     uint256 private nextListId;
 
     // Tuples: tupleId => elements (IDs 2^65 to 2^66 - 1)
@@ -677,6 +678,7 @@ contract VM {
     function _execMakeList() internal {
         uint16 numElements = _readUint16();
         uint256 listId = nextListId++;
+        isList[listId] = true;
         for (uint256 i = 0; i < numElements; i++) {
             lists[listId].push(0); // pre-allocate
         }
@@ -979,6 +981,7 @@ contract VM {
     function _execDictKeys() internal {
         uint256 dictId = _pop();
         uint256 listId = nextListId++;
+        isList[listId] = true;
         uint256 len = dictKeyList[dictId].length;
         for (uint256 i = 0; i < len; i++) {
             lists[listId].push(dictKeyList[dictId][i]);
@@ -994,6 +997,7 @@ contract VM {
     function _execDictValues() internal {
         uint256 dictId = _pop();
         uint256 listId = nextListId++;
+        isList[listId] = true;
         _gcRegister(listId);
         uint256 len = dictKeyList[dictId].length;
         for (uint256 i = 0; i < len; i++) {
@@ -1005,6 +1009,7 @@ contract VM {
     function _execDictItems() internal {
         uint256 dictId = _pop();
         uint256 listId = nextListId++;
+        isList[listId] = true;
         _gcRegister(listId);
         uint256 len = dictKeyList[dictId].length;
         for (uint256 i = 0; i < len; i++) {
@@ -1243,6 +1248,7 @@ contract VM {
         string memory delim = _getAnyString(delimIdx);
         bytes[] memory parts = _strSplit(bytes(s), bytes(delim));
         uint256 listId = nextListId++;
+        isList[listId] = true;
         for (uint256 i = 0; i < parts.length; i++) {
             uint256 partStrIdx = _addRuntimeString(parts[i]);
             lists[listId].push(partStrIdx);
@@ -1748,8 +1754,8 @@ contract VM {
         if (val >= DICT_ID_OFFSET && val < DICT_ID_OFFSET + nextDictId) return TYPE_DICT;
         if (val >= SET_ID_OFFSET && val < SET_ID_OFFSET + nextSetId) return TYPE_SET;
         if (val >= TUPLE_ID_OFFSET && val < TUPLE_ID_OFFSET + nextTupleId) return TYPE_TUPLE;
-        // Lists: IDs 0..nextListId, but only if the list exists
-        if (val < nextListId && lists[val].length > 0) return TYPE_LIST;
+        // Lists: IDs 0..nextListId, tracked by isList mapping
+        if (val < nextListId && isList[val]) return TYPE_LIST;
         // 0 or 1 are ambiguous (could be bool or int) — treat as bool
         if (val <= 1) return TYPE_BOOL;
         return TYPE_INT;
@@ -1781,6 +1787,7 @@ contract VM {
     function _execSorted() internal {
         uint256 srcId = _pop();
         uint256 dstId = nextListId++;
+        isList[dstId] = true;
         _gcRegister(dstId);
         uint256 len = lists[srcId].length;
         // Copy elements
@@ -1803,6 +1810,7 @@ contract VM {
     function _execReversed() internal {
         uint256 srcId = _pop();
         uint256 dstId = nextListId++;
+        isList[dstId] = true;
         _gcRegister(dstId);
         uint256 len = lists[srcId].length;
         for (uint256 i = len; i > 0; i--) {

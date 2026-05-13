@@ -604,3 +604,29 @@ Completed 12 features in a single session, bringing the test count from 524 to 5
 
 ### Test Results
 565/565 passing across 42 suites.
+
+## 2026-05-12 — FIX-1: _classifyType empty-list misclassification
+
+### Root Cause
+`_classifyType` in VM.sol used `lists[val].length > 0` to determine if a value is a list. Empty lists `[]` have length 0, so they fell through to the bool/int checks.
+
+### Approach
+Added `mapping(uint256 => bool) private isList` to track list allocations explicitly. Set `isList[listId] = true` in `_execMakeList` and all other list-creating paths (dict keys/values/items, str split, sorted, reversed). Changed `_classifyType` to check `isList[val]` instead of `lists[val].length > 0`.
+
+### Files Changed
+- `src/phases/VM.sol` — Added `isList` mapping, updated `_execMakeList`, `_execDictKeys`, `_execDictValues`, `_execDictItems`, `_execStrSplit`, `_execSorted`, `_execReversed`, `_classifyType`
+- `test/TypeClassify.t.sol` — New file with 5 tests
+
+### Tests Added
+5 tests (3 happy-path, 2 edge-case):
+- `testEmptyListIsinstanceList` — isinstance([], list) → True
+- `testEmptyListTypeIsList` — type([]) → 2 (TYPE_LIST)
+- `testEmptyListIsinstanceNotInt` — isinstance([], int) → False
+- `testEmptyListLenZero` — isinstance(x, list) and type(x) where x=[]
+- `testEmptyListAssignedToVar` — empty list assigned to variable, then isinstance check
+
+### Known Limitation
+`len([])` returns 0, which is also a valid list ID (value-space collision). This means `isinstance(len([]), list)` returns True incorrectly. Full fix requires type tagging (FIX-2).
+
+### Test Results
+571/571 passing across 44 suites. +5 new tests, 0 regressions.
