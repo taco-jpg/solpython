@@ -893,3 +893,20 @@ Documentation-only fix. Updated ISA.md data types section to accurately describe
 
 ### Test Results
 625/625 passing. No code changes.
+
+---
+
+## 2026-05-12 — FIX-11: Self-Hosting Bootstrap Documentation
+
+### Problem
+GOAL.md listed "P3-B: Self-hosting Bootstrap" as completed, but the mini_lexer.py is compiled by the Solidity compiler, not by itself. True self-hosting requires a compiler to compile its own source code. The existing tests demonstrate "a Python lexer compiled and executed on-chain", which is valuable but not self-hosting.
+
+### Approach
+Documentation-only fix. Updated GOAL.md to rename the entry to "Bootstrap Demo" with a note that it's NOT true self-hosting. No code or test changes.
+
+### Files Changed
+- `GOAL.md` — Renamed P3-B entry
+- `FIXES.md` — Updated blocker note
+
+### Test Results
+625/625 passing. No code changes.

@@ -1,7 +1,7 @@
 # FIXES.md — Critical Fix Queue
 
 ## CURRENT_FIX
-FIX-11: Self-hosting bootstrap is not real
+FIX-12: Solidity & Yul backends produce unverified output
 
 ## COMPLETED
 - [x] FIX-1: _classifyType empty-list misclassification (commit 6a47a93, +5 tests)
@@ -26,7 +26,7 @@ FIX-11: Self-hosting bootstrap is not real
 - [x] FIX-8: Temp variable slot exhaustion in lst[i] = value
 - [x] FIX-9: GC actually decrements refs
 - [x] FIX-10: Float precision is 6-digit fixed point, not IEEE 754
-- [ ] FIX-11: Self-hosting bootstrap is not real
+- [x] FIX-11: Self-hosting bootstrap is not real
 - [ ] FIX-12: Solidity & Yul backends produce unverified output
 - [ ] FIX-13: Test assertions strengthen
 - [ ] FIX-14: Documentation drift
@@ -42,6 +42,7 @@ FIX-11: Self-hosting bootstrap is not real
 - FIX-8: List/augmented assignment codegen used unique temp variable names per statement (`__asgn0`, `__asgn1`, ...) via `_forTempCounter`, exhausting uint8 variable slots in loops. Fixed by using a single reusable temp name `__tmp` per scope — safe because temps are always stored then loaded within the same statement.
 - FIX-9: Three issues: (1) Code generator never emitted OP_GC_UNREF — added LOAD_VAR + GC_UNREF before every STORE_VAR. (2) `_gcDecRef`/`_gcIncRef` treated ID 0 as sentinel (`id == 0` early return), but list IDs start at 0 — removed the sentinel check, relying solely on `gcLive[id]`. (3) GC_UNREF on first-assignment variables incorrectly unrefed the default value 0 — added `varInitialized` tracking to only emit GC_UNREF on reassignment.
 - FIX-10: Documentation-only fix. ISA.md said "Float: NOT SUPPORTED in v1" but floats are implemented using 6-digit fixed-point (FLOAT_SCALE=1,000,000). Updated ISA.md and ARCHITECTURE.md to accurately describe the tagged fixed-point representation.
+- FIX-11: Documentation-only fix. "Self-hosting Bootstrap" was misleading — the mini_lexer.py is compiled by the Solidity compiler, not by itself. True self-hosting would require the compiler to compile its own source code. Updated GOAL.md to clarify this is a "Bootstrap Demo", not self-hosting.
 
 ## FOLLOW_UPS
 (things noticed but out of scope for current fix)

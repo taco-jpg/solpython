@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-FIX-11: Self-hosting bootstrap is not real
+FIX-12: Solidity & Yul backends produce unverified output
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -25,7 +25,7 @@ FIX-11: Self-hosting bootstrap is not real
 - [x] P2-B: VFS (16 tests, virtual file system, compileWithVFS)
 - [x] P2-C: GC (13 tests, reference counting, OP_GC_REF/UNREF/CLEANUP/STATS)
 - [x] P3-A: Yul Backend (33 tests, AST-to-Yul IR transpiler)
-- [x] P3-B: Self-hosting Bootstrap (6 tests, mini Python lexer compiled by Solidity compiler)
+- [x] P3-B: Bootstrap Demo (6 tests, mini Python lexer compiled and executed on-chain — NOT true self-hosting)
 - [x] P4: Exception Handling (15 tests, try/except/finally/raise)
 - [x] P5: Venv (17 tests, compilation environment with VFS, settings, module paths)
 - [x] Class System (15 tests, instantiation, self, methods, inheritance)
