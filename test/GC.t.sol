@@ -135,4 +135,37 @@ contract GCTest is Test {
         // Bubble sort should still work correctly
         assertTrue(vm.getGCAllocated() > 0, "should track created lists");
     }
+
+    // ==================== FIX-9b: Shared reference safety ====================
+
+    function testGCSharedReference() public {
+        // x = [1,2,3] → list ID 0, refcount=1
+        // y = x → both reference list ID 0
+        // Neither should be freed
+        string memory src = "x = [1, 2, 3]\ny = x\n";
+        VM vm = _compileAndRun(src);
+        assertEq(vm.getGCAllocated(), 1, "only 1 list allocated");
+        assertEq(vm.getGCLive(), 1, "list should still be live");
+        assertEq(vm.getGCRefcount(0), 1, "list should have refcount 1 (still live)");
+    }
+
+    function testGCSharedReferenceUseAfterAssign() public {
+        // Verify list ID 0 is not falsely freed when assigned to another var
+        // If GC_UNREF(0) fires on first assignment of y, list 0 gets freed
+        string memory src = "x = [1, 2, 3]\ny = x\nprint(len(x))\n";
+        vm.recordLogs();
+        _compileAndRun(src);
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        bytes32 printTopic = keccak256("Print(uint256[])");
+        bool found = false;
+        for (uint256 i = logs.length; i > 0; i--) {
+            if (logs[i - 1].topics[0] == printTopic) {
+                uint256[] memory vals = abi.decode(logs[i - 1].data, (uint256[]));
+                assertEq(vals[0], 3, "len(x) should be 3, not freed");
+                found = true;
+                break;
+            }
+        }
+        assertTrue(found, "should have Print event");
+    }
 }
