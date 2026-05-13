@@ -876,3 +876,20 @@ Three issues prevented the GC from actually freeing objects:
 
 ### Test Results
 625/625 passing across 46 suites. +4 new tests, 0 regressions.
+
+---
+
+## 2026-05-12 — FIX-10: Float Precision Documentation
+
+### Problem
+ISA.md stated "Float: NOT SUPPORTED in v1" but floats are actually implemented using 6-digit fixed-point arithmetic (FLOAT_SCALE = 1,000,000) with tag 5 at bits 252-255. The documentation was misleading.
+
+### Approach
+Documentation-only fix. Updated ISA.md data types section to accurately describe the tagged value system (float, bool, none, list, dict, set, tuple). Updated ARCHITECTURE.md limitations to reflect current state.
+
+### Files Changed
+- `ISA.md` — Updated data types section with tagged value system
+- `ARCHITECTURE.md` — Updated limitations section
+
+### Test Results
+625/625 passing. No code changes.

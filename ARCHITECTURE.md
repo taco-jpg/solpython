@@ -110,8 +110,6 @@ Solidity's limited string manipulation is the primary challenge. The lexer opera
 ## Limitations (Known)
 - No global variables across functions (Phase 3 scope)
 - No import system (stdlib not available)
-- No dict/set types (only lists)
-- No exception handling
 - No generators/iterators
-- String operations limited to comparison and concatenation
-- Float arithmetic may have precision issues (Solidity int-based)
+- Float arithmetic uses 6-digit fixed-point (FLOAT_SCALE = 1,000,000), not IEEE 754 — precision is limited to ~6 significant digits
+- String operations limited to comparison, concatenation, and basic methods (upper/lower/slice/split/contains/charAt)

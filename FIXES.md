@@ -1,7 +1,7 @@
 # FIXES.md — Critical Fix Queue
 
 ## CURRENT_FIX
-FIX-10: Float precision is 6-digit fixed point, not IEEE 754
+FIX-11: Self-hosting bootstrap is not real
 
 ## COMPLETED
 - [x] FIX-1: _classifyType empty-list misclassification (commit 6a47a93, +5 tests)
@@ -13,6 +13,7 @@ FIX-10: Float precision is 6-digit fixed point, not IEEE 754
 - [x] FIX-7: Augmented assignment to non-simple targets (+5 tests)
 - [x] FIX-8: Temp variable slot exhaustion in lst[i] = value (+3 tests)
 - [x] FIX-9: GC actually decrements refs (+4 tests)
+- [x] FIX-10: Float precision documented as 6-digit fixed-point (ISA.md, ARCHITECTURE.md)
 
 ## QUEUE (in priority order — DO NOT REORDER)
 - [x] FIX-1: _classifyType empty-list misclassification
@@ -24,7 +25,7 @@ FIX-10: Float precision is 6-digit fixed point, not IEEE 754
 - [x] FIX-7: Augmented assignment to non-simple targets
 - [x] FIX-8: Temp variable slot exhaustion in lst[i] = value
 - [x] FIX-9: GC actually decrements refs
-- [ ] FIX-10: Float precision is 6-digit fixed point, not IEEE 754
+- [x] FIX-10: Float precision is 6-digit fixed point, not IEEE 754
 - [ ] FIX-11: Self-hosting bootstrap is not real
 - [ ] FIX-12: Solidity & Yul backends produce unverified output
 - [ ] FIX-13: Test assertions strengthen
@@ -40,6 +41,7 @@ FIX-10: Float precision is 6-digit fixed point, not IEEE 754
 - FIX-7: _genAugAssign only handled IDENTIFIER_REF targets. lst[i] += value was silently ignored. Fixed by adding INDEX_ACCESS handling: load current value via LIST_GET, apply op, store via LIST_SET with temp variable for intermediate result.
 - FIX-8: List/augmented assignment codegen used unique temp variable names per statement (`__asgn0`, `__asgn1`, ...) via `_forTempCounter`, exhausting uint8 variable slots in loops. Fixed by using a single reusable temp name `__tmp` per scope — safe because temps are always stored then loaded within the same statement.
 - FIX-9: Three issues: (1) Code generator never emitted OP_GC_UNREF — added LOAD_VAR + GC_UNREF before every STORE_VAR. (2) `_gcDecRef`/`_gcIncRef` treated ID 0 as sentinel (`id == 0` early return), but list IDs start at 0 — removed the sentinel check, relying solely on `gcLive[id]`. (3) GC_UNREF on first-assignment variables incorrectly unrefed the default value 0 — added `varInitialized` tracking to only emit GC_UNREF on reassignment.
+- FIX-10: Documentation-only fix. ISA.md said "Float: NOT SUPPORTED in v1" but floats are implemented using 6-digit fixed-point (FLOAT_SCALE=1,000,000). Updated ISA.md and ARCHITECTURE.md to accurately describe the tagged fixed-point representation.
 
 ## FOLLOW_UPS
 (things noticed but out of scope for current fix)

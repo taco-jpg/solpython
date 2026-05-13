@@ -7,12 +7,15 @@ Custom stack-based bytecode for the Python compiler VM. Each instruction is a si
 ## Data Types
 
 Values on the stack are 256-bit words, interpreted as:
-- **Integer**: signed 256-bit integer (Solidity `int256`)
-- **Float**: NOT SUPPORTED in v1 (use integer division; document as limitation)
-- **Boolean**: 0 or 1
-- **None**: special value `type(uint256).max` (0xFFFF...FFFF)
-- **String**: pointer to string table index (stored separately)
-- **List**: pointer to list storage index
+- **Integer**: signed 256-bit integer, range -2^62 to 2^62-1 (overflow-checked)
+- **Float**: fixed-point with 6 decimal digits (FLOAT_SCALE = 1,000,000). Tagged with tag 5 at bits 252-255. E.g., 3.14 is stored as `(5 << 252) | 3140000`. NOT IEEE 754 — precision is limited to ~6 significant digits.
+- **Boolean**: tagged with BOOL_OFFSET (2^66). `True` = 2^66 + 1, `False` = 2^66.
+- **None**: special value `(6 << 252)` (tag 6 at bits 252-255)
+- **String**: string table index + offset (>= 2^62)
+- **List**: ID 0 to 2^60-1, tracked by `isList` mapping
+- **Dict**: ID 2^60 to 2^61-1
+- **Set**: ID 2^61 to 2^62-1
+- **Tuple**: ID 2^62 to 2^63-1
 
 ## Instruction Set
 

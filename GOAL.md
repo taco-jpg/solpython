@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-FIX-10: Float precision is 6-digit fixed point, not IEEE 754
+FIX-11: Self-hosting bootstrap is not real
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
