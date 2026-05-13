@@ -43,8 +43,8 @@ contract ExceptionTest is Test {
         lexer.tokenize("try:\n    x = 1\nexcept:\n    x = 2\n");
         Parser parser = new Parser();
         parser.parse(lexer);
-        // Should parse without error
-        assertTrue(parser.getNodeCount() > 0, "should produce AST nodes");
+        // Should produce at least: module block, try_stmt, try body, except branch
+        assertGe(parser.getNodeCount(), 4, "should produce try/except AST nodes");
     }
 
     function testTryExceptFinallyParsed() public {
@@ -52,7 +52,8 @@ contract ExceptionTest is Test {
         lexer.tokenize("try:\n    x = 1\nexcept:\n    x = 2\nfinally:\n    x = 3\n");
         Parser parser = new Parser();
         parser.parse(lexer);
-        assertTrue(parser.getNodeCount() > 0, "should produce AST nodes");
+        // More nodes than try/except alone (finally branch adds nodes)
+        assertGe(parser.getNodeCount(), 5, "should produce try/except/finally AST nodes");
     }
 
     function testRaiseParsed() public {
@@ -60,7 +61,7 @@ contract ExceptionTest is Test {
         lexer.tokenize("raise 42\n");
         Parser parser = new Parser();
         parser.parse(lexer);
-        assertTrue(parser.getNodeCount() > 0, "should produce AST nodes");
+        assertGe(parser.getNodeCount(), 2, "should produce raise + expr nodes");
     }
 
     function testRaiseWithValueParsed() public {
@@ -68,7 +69,7 @@ contract ExceptionTest is Test {
         lexer.tokenize("try:\n    x = 1\nexcept:\n    raise 99\n");
         Parser parser = new Parser();
         parser.parse(lexer);
-        assertTrue(parser.getNodeCount() > 0, "should produce AST nodes");
+        assertGe(parser.getNodeCount(), 4, "should produce try + raise nodes");
     }
 
     // ==================== VM Tests ====================
@@ -125,26 +126,26 @@ contract ExceptionTest is Test {
     function testTryKeyword() public {
         Lexer lexer = new Lexer();
         lexer.tokenize("try:\n");
-        // try should be tokenized as KW_TRY
-        assertTrue(lexer.getTokenCount() > 0, "should produce tokens");
+        // try: newline → at least KW_TRY, COLON, NEWLINE, EOF = 4 tokens
+        assertGe(lexer.getTokenCount(), 4, "try: should produce at least 4 tokens");
     }
 
     function testExceptKeyword() public {
         Lexer lexer = new Lexer();
         lexer.tokenize("except:\n");
-        assertTrue(lexer.getTokenCount() > 0, "should produce tokens");
+        assertGe(lexer.getTokenCount(), 4, "except: should produce at least 4 tokens");
     }
 
     function testFinallyKeyword() public {
         Lexer lexer = new Lexer();
         lexer.tokenize("finally:\n");
-        assertTrue(lexer.getTokenCount() > 0, "should produce tokens");
+        assertGe(lexer.getTokenCount(), 4, "finally: should produce at least 4 tokens");
     }
 
     function testRaiseKeyword() public {
         Lexer lexer = new Lexer();
         lexer.tokenize("raise\n");
-        assertTrue(lexer.getTokenCount() > 0, "should produce tokens");
+        assertGe(lexer.getTokenCount(), 3, "raise should produce at least 3 tokens");
     }
 
     // ==================== FIX-6: Multiple except + finally backpatch ====================

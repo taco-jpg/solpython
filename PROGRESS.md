@@ -933,3 +933,19 @@ Added structural validation tests: balanced braces checker, non-trivial output l
 
 ### Test Results
 629/629 passing across 46 suites. +4 new tests, 0 regressions.
+
+---
+
+## 2026-05-12 — FIX-13: Test Assertions Strengthened
+
+### Problem
+Exception tests used weak assertions like `assertTrue(parser.getNodeCount() > 0)` and `assertTrue(lexer.getTokenCount() > 0)` that would pass even if the parser/lexer produced wrong output.
+
+### Approach
+Replaced `assertTrue(x > 0)` with `assertGe(x, expected)` to check minimum expected counts. Parser tests now assert minimum node counts (e.g., try/except should produce at least 4 nodes). Lexer tests assert minimum token counts (e.g., "try:\n" should produce at least 4 tokens).
+
+### Files Changed
+- `test/Exception.t.sol` — Strengthened 8 assertions (4 parser + 4 lexer)
+
+### Test Results
+629/629 passing. No new tests, 0 regressions.

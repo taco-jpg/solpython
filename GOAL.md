@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-FIX-13: Test assertions strengthen
+FIX-14: Documentation drift
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
