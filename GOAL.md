@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-FEAT-15: VFS Directory Structure
+FEAT-16: Global and Nonlocal
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -47,18 +47,19 @@ FEAT-15: VFS Directory Structure
 - [x] String Formatting (8 tests, f-strings with {var}, %s/%d formatting, OP_STR_CONCAT)
 - [x] Dict Methods (7 tests, items/values/get/update opcodes, GC-registered)
 - [x] Sorted and Reversed (7 tests, OP_SORTED/OP_REVERSED, bubble sort, new list creation)
+- [x] VFS Directory Structure (8 tests, mkdir/rmdir/listDir/isDir, nested dirs, path normalization)
 
 ## IN_PROGRESS
-FEAT-15: VFS Directory Structure
+FEAT-16: Global and Nonlocal
 
 ## NEXT_UP
-FEAT-16: Global and Nonlocal
+(None — all features complete)
 
 ## BLOCKERS
 (None yet)
 
 ## TEST_COUNT
-554 passing / 554 total
+562 passing / 562 total
 
 ## PHASE DETAILS
 
