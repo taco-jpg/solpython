@@ -165,6 +165,20 @@ contract VM {
     uint8 constant OP_STORE_ATTR = 0xD3;
     uint8 constant OP_CALL_METHOD = 0xD4;
 
+    // Type introspection opcodes
+    uint8 constant OP_ISINSTANCE = 0xE0; // Pop type_tag and value, push 1 if match
+    uint8 constant OP_TYPEOF = 0xE1;     // Pop value, push type_tag
+
+    // Type tags for isinstance/typeof
+    uint256 constant TYPE_INT = 0;
+    uint256 constant TYPE_STR = 1;
+    uint256 constant TYPE_LIST = 2;
+    uint256 constant TYPE_BOOL = 3;
+    uint256 constant TYPE_NONE = 4;
+    uint256 constant TYPE_DICT = 5;
+    uint256 constant TYPE_SET = 6;
+    uint256 constant TYPE_TUPLE = 7;
+
     uint8 constant OP_HALT = 0xFF;
 
     // ==================== Entry Point ====================
@@ -258,6 +272,8 @@ contract VM {
             else if (op == OP_LOAD_ATTR) _execLoadAttr();
             else if (op == OP_STORE_ATTR) _execStoreAttr();
             else if (op == OP_CALL_METHOD) _execCallMethod();
+            else if (op == OP_ISINSTANCE) _execIsInstance();
+            else if (op == OP_TYPEOF) _execTypeOf();
             else if (op == OP_HALT) break;
             else {
                 emit VMError("Unknown opcode", pc - 1);
@@ -1650,5 +1666,38 @@ contract VM {
 
     function getInstanceClass(uint256 instanceId) public view returns (uint256) {
         return instanceClass[instanceId];
+    }
+
+    // ==================== Type Introspection ====================
+
+    function _classifyType(uint256 val) internal view returns (uint256) {
+        if (val == type(uint256).max) return TYPE_NONE;
+        // Check high-ID types first (no overlap with ints)
+        if (val >= STATIC_STR_OFFSET || val >= RUNTIME_STR_OFFSET) return TYPE_STR;
+        if (val >= DICT_ID_OFFSET && val < DICT_ID_OFFSET + nextDictId) return TYPE_DICT;
+        if (val >= SET_ID_OFFSET && val < SET_ID_OFFSET + nextSetId) return TYPE_SET;
+        if (val >= TUPLE_ID_OFFSET && val < TUPLE_ID_OFFSET + nextTupleId) return TYPE_TUPLE;
+        // Lists: IDs 0..nextListId, but only if the list exists
+        if (val < nextListId && lists[val].length > 0) return TYPE_LIST;
+        // 0 or 1 are ambiguous (could be bool or int) — treat as bool
+        if (val <= 1) return TYPE_BOOL;
+        return TYPE_INT;
+    }
+
+    function _execIsInstance() internal {
+        uint256 typeTag = _pop();
+        uint256 val = _pop();
+        uint256 actualType = _classifyType(val);
+        // bool is a subclass of int: isinstance(True, int) == True
+        if (typeTag == TYPE_INT && (actualType == TYPE_INT || actualType == TYPE_BOOL)) {
+            stack.push(1);
+        } else {
+            stack.push(actualType == typeTag ? 1 : 0);
+        }
+    }
+
+    function _execTypeOf() internal {
+        uint256 val = _pop();
+        stack.push(_classifyType(val));
     }
 }

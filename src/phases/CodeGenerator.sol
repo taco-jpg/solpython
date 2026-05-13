@@ -137,6 +137,9 @@ contract CodeGenerator {
     uint8 constant OP_STORE_ATTR = 0xD3;
     uint8 constant OP_CALL_METHOD = 0xD4;
 
+    uint8 constant OP_ISINSTANCE = 0xE0;
+    uint8 constant OP_TYPEOF = 0xE1;
+
     uint8 constant OP_HALT = 0xFF;
 
     // ==================== Entry Point ====================
@@ -1239,6 +1242,34 @@ contract CodeGenerator {
         // Built-in: int — convert string to int
         if (keccak256(bytes(name)) == keccak256("int") && argCount == 1) {
             _emitOp(OP_STR_TO_INT);
+            return;
+        }
+
+        // Built-in: isinstance(x, type) — check runtime type
+        if (keccak256(bytes(name)) == keccak256("isinstance") && argCount == 2) {
+            uint256 typeArg = _ea(_ai(nodeIdx) + 1);
+            if (_nt(typeArg) == NodeType.IDENTIFIER_REF) {
+                bytes32 typeHash = keccak256(bytes(_sv(typeArg)));
+                uint256 typeTag;
+                if (typeHash == keccak256("int")) typeTag = 0;
+                else if (typeHash == keccak256("str")) typeTag = 1;
+                else if (typeHash == keccak256("list")) typeTag = 2;
+                else if (typeHash == keccak256("bool")) typeTag = 3;
+                else if (typeHash == keccak256("NoneType")) typeTag = 4;
+                else if (typeHash == keccak256("dict")) typeTag = 5;
+                else if (typeHash == keccak256("set")) typeTag = 6;
+                else if (typeHash == keccak256("tuple")) typeTag = 7;
+                else typeTag = 0; // default to int
+                _genExpr(_ea(_ai(nodeIdx))); // push value
+                _genPush(typeTag);
+                _emitOp(OP_ISINSTANCE);
+                return;
+            }
+        }
+
+        // Built-in: type(x) — return type tag as int
+        if (keccak256(bytes(name)) == keccak256("type") && argCount == 1) {
+            _emitOp(OP_TYPEOF);
             return;
         }
 

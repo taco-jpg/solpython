@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-FEAT-10: Isinstance and Type builtins
+FEAT-11: Map and Filter builtins
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -42,6 +42,7 @@ FEAT-10: Isinstance and Type builtins
 - [x] Chained Comparison (8 tests, a < b < c, 4 operands, mixed ops)
 - [x] For...Else and While...Else (7 tests, else executes on normal exit, skipped by break)
 - [x] Enumerate and Zip builtins (7 tests, tuple for-loop targets, enumerate/zip desugaring)
+- [x] Isinstance and Type builtins (9 tests, isinstance/typeof opcodes, type classification)
 
 ## IN_PROGRESS
 (None — all features complete)
@@ -53,7 +54,7 @@ FEAT-10: Isinstance and Type builtins
 (None yet)
 
 ## TEST_COUNT
-515 passing / 515 total
+524 passing / 524 total
 
 ## PHASE DETAILS
 
