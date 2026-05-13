@@ -14,6 +14,7 @@ contract CodeGenerator {
     mapping(bytes32 => uint256) private stringIndex; // hash → index in string table
     mapping(bytes32 => bool) private stringCached; // hash → whether string is cached
     uint256 constant STATIC_STR_OFFSET = 2**62;
+    uint256 constant BOOL_OFFSET = 2**66;
 
     // Function offsets: name hash → bytecode offset
     mapping(bytes32 => uint256) private funcOffsets;
@@ -1210,7 +1211,7 @@ contract CodeGenerator {
         } else if (nt == NodeType.STRING_LITERAL) {
             _genPushString(_sv(nodeIdx));
         } else if (nt == NodeType.BOOL_LITERAL) {
-            _genPush(_iv(nodeIdx));
+            _genPush(BOOL_OFFSET + _iv(nodeIdx));
         } else if (nt == NodeType.NONE_LITERAL) {
             _genPushNone();
         } else if (nt == NodeType.IDENTIFIER_REF) {

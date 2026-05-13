@@ -84,4 +84,155 @@ contract TypeClassifyTest is Test {
         pyVm.execute(bytecode);
         assertEq(_getLastPrint(), 1, "isinstance(x, list) where x=[] should be True");
     }
+
+    // ==================== FIX-2: Bool tagging ====================
+
+    function testTypeTrueIsBool() public {
+        string memory src = "print(type(True))\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 3, "type(True) should be 3 (TYPE_BOOL)");
+    }
+
+    function testTypeZeroIsInt() public {
+        string memory src = "print(type(0))\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 0, "type(0) should be 0 (TYPE_INT)");
+    }
+
+    function testTypeOneIsInt() public {
+        string memory src = "print(type(1))\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 0, "type(1) should be 0 (TYPE_INT)");
+    }
+
+    function testIsinstanceTrueInt() public {
+        // Python: isinstance(True, int) == True (bool is subclass of int)
+        string memory src = "print(isinstance(True, int))\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 1, "isinstance(True, int) should be True");
+    }
+
+    function testIsinstanceZeroNotBool() public {
+        string memory src = "print(isinstance(0, bool))\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 0, "isinstance(0, bool) should be False");
+    }
+
+    function testIsinstanceZeroIsInt() public {
+        string memory src = "print(isinstance(0, int))\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 1, "isinstance(0, int) should be True");
+    }
+
+    function testBoolArithmetic() public {
+        // True + 1 == 2 (bool arithmetic still works)
+        string memory src = "print(True + 1)\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 2, "True + 1 should be 2");
+    }
+
+    function testIfZeroDoesNotExecute() public {
+        string memory src = "x = 0\nif x:\n    print(1)\nelse:\n    print(0)\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 0, "if 0: should not execute body");
+    }
+
+    function testIfFalseDoesNotExecute() public {
+        string memory src = "if False:\n    print(1)\nelse:\n    print(0)\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 0, "if False: should not execute body");
+    }
+
+    function testOneEqualsTrue() public {
+        // Python semantics: 1 == True is True
+        string memory src = "print(1 == True)\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 1, "1 == True should be True");
+    }
+
+    function testZeroEqualsFalse() public {
+        // Python semantics: 0 == False is True
+        string memory src = "print(0 == False)\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 1, "0 == False should be True");
+    }
+
+    function testComparisonReturnsBool() public {
+        // 3 > 2 should return a bool, not an int
+        string memory src = "print(type(3 > 2))\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 3, "type(3 > 2) should be 3 (TYPE_BOOL)");
+    }
+
+    function testBoolAndBool() public {
+        string memory src = "print(True and False)\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 0, "True and False should be False");
+    }
+
+    function testBoolOrBool() public {
+        string memory src = "print(False or True)\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 1, "False or True should be True");
+    }
+
+    function testNotTrue() public {
+        string memory src = "print(not True)\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 0, "not True should be False");
+    }
+
+    function testNotZero() public {
+        string memory src = "print(not 0)\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 1, "not 0 should be True");
+    }
 }

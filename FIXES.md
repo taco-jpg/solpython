@@ -1,15 +1,17 @@
 # FIXES.md — Critical Fix Queue
 
 ## CURRENT_FIX
-FIX-2: _classifyType returns TYPE_BOOL for 0 and 1
+FIX-3: None vs -1 collision
   Sub-step: Write failing tests
 
 ## COMPLETED
-- [x] FIX-1: _classifyType empty-list misclassification (commit pending, +5 tests)
+- [x] FIX-1: _classifyType empty-list misclassification (commit 6a47a93, +5 tests)
+- [x] FIX-2: _classifyType returns TYPE_BOOL for 0 and 1 (commit pending, +16 tests)
 
 ## QUEUE (in priority order — DO NOT REORDER)
 - [x] FIX-1: _classifyType empty-list misclassification
-- [ ] FIX-2: _classifyType returns TYPE_BOOL for 0 and 1
+- [x] FIX-2: _classifyType returns TYPE_BOOL for 0 and 1
+- [ ] FIX-3: None vs -1 collision
 - [ ] FIX-3: None vs -1 collision
 - [ ] FIX-4: Integer range / string ID collision
 - [ ] FIX-5: Float tag false positives on extreme values
@@ -32,4 +34,4 @@ FIX-2: _classifyType returns TYPE_BOOL for 0 and 1
 (things noticed but out of scope for current fix)
 
 ## TEST_COUNT
-571 passing / 571 total
+587 passing / 587 total

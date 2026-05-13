@@ -630,3 +630,38 @@ Added `mapping(uint256 => bool) private isList` to track list allocations explic
 
 ### Test Results
 571/571 passing across 44 suites. +5 new tests, 0 regressions.
+
+## 2026-05-12 — FIX-2: _classifyType returns TYPE_BOOL for 0 and 1
+
+### Root Cause
+`_classifyType` used `if (val <= 1) return TYPE_BOOL` which meant `type(0)` returned TYPE_BOOL instead of TYPE_INT. Bool values were indistinguishable from int values 0 and 1.
+
+### Approach
+Introduced BOOL_OFFSET = 2**66 tag. Bool values are now represented as BOOL_OFFSET + 0 (False) and BOOL_OFFSET + 1 (True). Changes:
+- VM: Added `_isBoolTagged`, `_untagBool`, `_isTruthy` helpers
+- VM: Comparison ops (EQ/NEQ/LT/GTE/LTE/GTE) untag before comparing, push tagged bool results
+- VM: Boolean ops (AND/OR/NOT) use `_isTruthy`, push tagged bool results
+- VM: Jump ops (JUMP_IF_FALSE/JUMP_IF_TRUE) use `_isTruthy`
+- VM: Arithmetic ops (ADD/SUB/MUL/DIV/MOD/POW/NEG) untag before computing
+- VM: isinstance/OP_IN/OP_STR_EQ/OP_STR_CONTAINS push tagged bool results
+- VM: Print untagges bools before emitting
+- VM: _classifyType checks `_isBoolTagged` first, removed `val <= 1` hack
+- Codegen: BOOL_LITERAL pushes BOOL_OFFSET + value
+- Python semantics preserved: 1 == True → True, 0 == False → True, True + 1 == 2
+
+### Files Changed
+- `src/phases/VM.sol` — BOOL_OFFSET constant, helpers, updated 15+ functions
+- `src/phases/CodeGenerator.sol` — BOOL_OFFSET constant, BOOL_LITERAL push
+- `test/TypeClassify.t.sol` — 16 new tests
+
+### Tests Added
+16 tests (10 happy-path, 6 edge-case):
+- type(True) == TYPE_BOOL, type(0) == TYPE_INT, type(1) == TYPE_INT
+- isinstance(True, int) → True, isinstance(0, bool) → False, isinstance(0, int) → True
+- True + 1 == 2, 1 == True → True, 0 == False → True
+- if 0: / if False: does not execute body
+- type(3 > 2) == TYPE_BOOL
+- True and False → False, False or True → True, not True → False, not 0 → True
+
+### Test Results
+587/587 passing across 44 suites. +16 new tests, 0 regressions.

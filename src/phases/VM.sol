@@ -187,6 +187,9 @@ contract VM {
     uint256 constant TYPE_SET = 6;
     uint256 constant TYPE_TUPLE = 7;
 
+    // Bool tagging: True = BOOL_OFFSET + 1, False = BOOL_OFFSET
+    uint256 constant BOOL_OFFSET = 2**66;
+
     uint8 constant OP_HALT = 0xFF;
 
     // ==================== Entry Point ====================
@@ -377,10 +380,26 @@ contract VM {
         return encoded & FLOAT_VALUE_MASK;
     }
 
+    function _isBoolTagged(uint256 val) internal pure returns (bool) {
+        return val >= BOOL_OFFSET && val <= BOOL_OFFSET + 1;
+    }
+
+    function _untagBool(uint256 val) internal pure returns (uint256) {
+        return _isBoolTagged(val) ? val - BOOL_OFFSET : val;
+    }
+
+    function _isTruthy(uint256 val) internal pure returns (bool) {
+        if (val == 0) return false;
+        if (val == BOOL_OFFSET) return false;
+        return true;
+    }
+
     function _execAdd() internal {
         uint256 a = _pop();
         uint256 b = _pop();
         if (_checkNoneArith(a, b)) return;
+        a = _untagBool(a);
+        b = _untagBool(b);
 
         // Check if either operand is a string (static or runtime)
         if (_isStringId(a) || _isStringId(b)) {
@@ -405,6 +424,8 @@ contract VM {
         uint256 a = _pop();
         uint256 b = _pop();
         if (_checkNoneArith(a, b)) return;
+        a = _untagBool(a);
+        b = _untagBool(b);
         if (_isFloat(a) || _isFloat(b)) {
             uint256 aScaled = _isFloat(a) ? _floatExtract(a) : a * FLOAT_SCALE;
             uint256 bScaled = _isFloat(b) ? _floatExtract(b) : b * FLOAT_SCALE;
@@ -418,6 +439,8 @@ contract VM {
         uint256 a = _pop();
         uint256 b = _pop();
         if (_checkNoneArith(a, b)) return;
+        a = _untagBool(a);
+        b = _untagBool(b);
         if (_isFloat(a) || _isFloat(b)) {
             uint256 aScaled = _isFloat(a) ? _floatExtract(a) : a * FLOAT_SCALE;
             uint256 bScaled = _isFloat(b) ? _floatExtract(b) : b * FLOAT_SCALE;
@@ -435,6 +458,8 @@ contract VM {
         uint256 a = _pop();
         uint256 b = _pop();
         if (_checkNoneArith(a, b)) return;
+        a = _untagBool(a);
+        b = _untagBool(b);
         if (a == 0) {
             emit VMError("Division by zero", pc - 1);
             pc = code.length; // halt
@@ -453,6 +478,8 @@ contract VM {
         uint256 a = _pop();
         uint256 b = _pop();
         if (_checkNoneArith(a, b)) return;
+        a = _untagBool(a);
+        b = _untagBool(b);
         if (a == 0) {
             emit VMError("Modulo by zero", pc - 1);
             pc = code.length; // halt
@@ -465,11 +492,14 @@ contract VM {
         uint256 a = _pop();
         uint256 b = _pop();
         if (_checkNoneArith(a, b)) return;
+        a = _untagBool(a);
+        b = _untagBool(b);
         stack.push(_pow(b, a));
     }
 
     function _execNeg() internal {
         uint256 a = _pop();
+        a = _untagBool(a);
         if (_isNone(a)) {
             emit VMError("NoneType in arithmetic", pc - 1);
             pc = code.length;
@@ -483,25 +513,27 @@ contract VM {
     function _execEq() internal {
         uint256 a = _pop();
         uint256 b = _pop();
-        stack.push(b == a ? 1 : 0);
+        stack.push(_untagBool(b) == _untagBool(a) ? BOOL_OFFSET + 1 : BOOL_OFFSET);
     }
 
     function _execNeq() internal {
         uint256 a = _pop();
         uint256 b = _pop();
-        stack.push(b != a ? 1 : 0);
+        stack.push(_untagBool(b) != _untagBool(a) ? BOOL_OFFSET + 1 : BOOL_OFFSET);
     }
 
     function _execLt() internal {
         uint256 a = _pop();
         uint256 b = _pop();
         if (_checkNoneArith(a, b)) return;
+        uint256 aU = _untagBool(a);
+        uint256 bU = _untagBool(b);
         if (_isFloat(a) || _isFloat(b)) {
-            int256 aVal = int256(_isFloat(a) ? _floatExtract(a) : a * FLOAT_SCALE);
-            int256 bVal = int256(_isFloat(b) ? _floatExtract(b) : b * FLOAT_SCALE);
-            stack.push(bVal < aVal ? 1 : 0);
+            int256 aVal = int256(_isFloat(a) ? _floatExtract(a) : aU * FLOAT_SCALE);
+            int256 bVal = int256(_isFloat(b) ? _floatExtract(b) : bU * FLOAT_SCALE);
+            stack.push(bVal < aVal ? BOOL_OFFSET + 1 : BOOL_OFFSET);
         } else {
-            stack.push(int256(b) < int256(a) ? 1 : 0);
+            stack.push(int256(bU) < int256(aU) ? BOOL_OFFSET + 1 : BOOL_OFFSET);
         }
     }
 
@@ -509,12 +541,14 @@ contract VM {
         uint256 a = _pop();
         uint256 b = _pop();
         if (_checkNoneArith(a, b)) return;
+        uint256 aU = _untagBool(a);
+        uint256 bU = _untagBool(b);
         if (_isFloat(a) || _isFloat(b)) {
-            int256 aVal = int256(_isFloat(a) ? _floatExtract(a) : a * FLOAT_SCALE);
-            int256 bVal = int256(_isFloat(b) ? _floatExtract(b) : b * FLOAT_SCALE);
-            stack.push(bVal > aVal ? 1 : 0);
+            int256 aVal = int256(_isFloat(a) ? _floatExtract(a) : aU * FLOAT_SCALE);
+            int256 bVal = int256(_isFloat(b) ? _floatExtract(b) : bU * FLOAT_SCALE);
+            stack.push(bVal > aVal ? BOOL_OFFSET + 1 : BOOL_OFFSET);
         } else {
-            stack.push(int256(b) > int256(a) ? 1 : 0);
+            stack.push(int256(bU) > int256(aU) ? BOOL_OFFSET + 1 : BOOL_OFFSET);
         }
     }
 
@@ -522,12 +556,14 @@ contract VM {
         uint256 a = _pop();
         uint256 b = _pop();
         if (_checkNoneArith(a, b)) return;
+        uint256 aU = _untagBool(a);
+        uint256 bU = _untagBool(b);
         if (_isFloat(a) || _isFloat(b)) {
-            int256 aVal = int256(_isFloat(a) ? _floatExtract(a) : a * FLOAT_SCALE);
-            int256 bVal = int256(_isFloat(b) ? _floatExtract(b) : b * FLOAT_SCALE);
-            stack.push(bVal <= aVal ? 1 : 0);
+            int256 aVal = int256(_isFloat(a) ? _floatExtract(a) : aU * FLOAT_SCALE);
+            int256 bVal = int256(_isFloat(b) ? _floatExtract(b) : bU * FLOAT_SCALE);
+            stack.push(bVal <= aVal ? BOOL_OFFSET + 1 : BOOL_OFFSET);
         } else {
-            stack.push(int256(b) <= int256(a) ? 1 : 0);
+            stack.push(int256(bU) <= int256(aU) ? BOOL_OFFSET + 1 : BOOL_OFFSET);
         }
     }
 
@@ -535,12 +571,14 @@ contract VM {
         uint256 a = _pop();
         uint256 b = _pop();
         if (_checkNoneArith(a, b)) return;
+        uint256 aU = _untagBool(a);
+        uint256 bU = _untagBool(b);
         if (_isFloat(a) || _isFloat(b)) {
-            int256 aVal = int256(_isFloat(a) ? _floatExtract(a) : a * FLOAT_SCALE);
-            int256 bVal = int256(_isFloat(b) ? _floatExtract(b) : b * FLOAT_SCALE);
-            stack.push(bVal >= aVal ? 1 : 0);
+            int256 aVal = int256(_isFloat(a) ? _floatExtract(a) : aU * FLOAT_SCALE);
+            int256 bVal = int256(_isFloat(b) ? _floatExtract(b) : bU * FLOAT_SCALE);
+            stack.push(bVal >= aVal ? BOOL_OFFSET + 1 : BOOL_OFFSET);
         } else {
-            stack.push(int256(b) >= int256(a) ? 1 : 0);
+            stack.push(int256(bU) >= int256(aU) ? BOOL_OFFSET + 1 : BOOL_OFFSET);
         }
     }
 
@@ -549,18 +587,18 @@ contract VM {
     function _execAnd() internal {
         uint256 a = _pop();
         uint256 b = _pop();
-        stack.push((b != 0 && a != 0) ? 1 : 0);
+        stack.push((_isTruthy(b) && _isTruthy(a)) ? BOOL_OFFSET + 1 : BOOL_OFFSET);
     }
 
     function _execOr() internal {
         uint256 a = _pop();
         uint256 b = _pop();
-        stack.push((b != 0 || a != 0) ? 1 : 0);
+        stack.push((_isTruthy(b) || _isTruthy(a)) ? BOOL_OFFSET + 1 : BOOL_OFFSET);
     }
 
     function _execNot() internal {
         uint256 a = _pop();
-        stack.push(a == 0 ? 1 : 0);
+        stack.push(_isTruthy(a) ? BOOL_OFFSET : BOOL_OFFSET + 1);
     }
 
     // ==================== Variables ====================
@@ -593,13 +631,13 @@ contract VM {
     function _execJumpIfFalse() internal {
         uint256 offset = _readUint32();
         uint256 cond = _pop();
-        if (cond == 0) pc = pc + offset;
+        if (!_isTruthy(cond)) pc = pc + offset;
     }
 
     function _execJumpIfTrue() internal {
         uint256 offset = _readUint32();
         uint256 cond = _pop();
-        if (cond != 0) pc = pc + offset;
+        if (_isTruthy(cond)) pc = pc + offset;
     }
 
     function _execJumpBack() internal {
@@ -894,7 +932,7 @@ contract VM {
         uint8 numArgs = uint8(code[pc]); pc++;
         uint256[] memory values = new uint256[](numArgs);
         for (uint256 i = numArgs; i > 0; i--) {
-            values[i - 1] = _pop();
+            values[i - 1] = _untagBool(_pop());
         }
         emit Trace(pc - 2, 0x80, values[0]);
 
@@ -1096,12 +1134,12 @@ contract VM {
         uint256 element = _pop();
         // Dict
         if (container >= DICT_ID_OFFSET && container < DICT_ID_OFFSET + nextDictId) {
-            stack.push(dictHasKey[container][element] ? 1 : 0);
+            stack.push(dictHasKey[container][element] ? BOOL_OFFSET + 1 : BOOL_OFFSET);
             return;
         }
         // Set
         if (container >= SET_ID_OFFSET && container < SET_ID_OFFSET + nextSetId) {
-            stack.push(setMembers[container][element] ? 1 : 0);
+            stack.push(setMembers[container][element] ? BOOL_OFFSET + 1 : BOOL_OFFSET);
             return;
         }
         // String: check if element (as string) is contained in container (as string)
@@ -1109,11 +1147,11 @@ contract VM {
             string memory haystack = _getAnyString(container);
             string memory needle = _getAnyString(element);
             bool found = _strContains(bytes(haystack), bytes(needle));
-            stack.push(found ? 1 : 0);
+            stack.push(found ? BOOL_OFFSET + 1 : BOOL_OFFSET);
             return;
         }
         // Fallback: not found
-        stack.push(0);
+        stack.push(BOOL_OFFSET);
     }
 
     // ==================== String Operations ====================
@@ -1206,7 +1244,7 @@ contract VM {
         uint256 aIdx = _pop();
         string memory a = _getAnyString(aIdx);
         string memory b = _getAnyString(bIdx);
-        stack.push(keccak256(bytes(a)) == keccak256(bytes(b)) ? 1 : 0);
+        stack.push(keccak256(bytes(a)) == keccak256(bytes(b)) ? BOOL_OFFSET + 1 : BOOL_OFFSET);
     }
 
     function _execStrToInt() internal {
@@ -1238,7 +1276,7 @@ contract VM {
         string memory haystack = _getAnyString(haystackIdx);
         string memory needle = _getAnyString(needleIdx);
         bool found = _strContains(bytes(haystack), bytes(needle));
-        stack.push(found ? 1 : 0);
+        stack.push(found ? BOOL_OFFSET + 1 : BOOL_OFFSET);
     }
 
     function _execStrSplit() internal {
@@ -1749,6 +1787,8 @@ contract VM {
 
     function _classifyType(uint256 val) internal view returns (uint256) {
         if (val == type(uint256).max) return TYPE_NONE;
+        // Tagged bools: BOOL_OFFSET + 0 (False) or BOOL_OFFSET + 1 (True)
+        if (_isBoolTagged(val)) return TYPE_BOOL;
         // Check high-ID types first (no overlap with ints)
         if (val >= STATIC_STR_OFFSET || val >= RUNTIME_STR_OFFSET) return TYPE_STR;
         if (val >= DICT_ID_OFFSET && val < DICT_ID_OFFSET + nextDictId) return TYPE_DICT;
@@ -1756,8 +1796,6 @@ contract VM {
         if (val >= TUPLE_ID_OFFSET && val < TUPLE_ID_OFFSET + nextTupleId) return TYPE_TUPLE;
         // Lists: IDs 0..nextListId, tracked by isList mapping
         if (val < nextListId && isList[val]) return TYPE_LIST;
-        // 0 or 1 are ambiguous (could be bool or int) — treat as bool
-        if (val <= 1) return TYPE_BOOL;
         return TYPE_INT;
     }
 
@@ -1767,9 +1805,9 @@ contract VM {
         uint256 actualType = _classifyType(val);
         // bool is a subclass of int: isinstance(True, int) == True
         if (typeTag == TYPE_INT && (actualType == TYPE_INT || actualType == TYPE_BOOL)) {
-            stack.push(1);
+            stack.push(BOOL_OFFSET + 1);
         } else {
-            stack.push(actualType == typeTag ? 1 : 0);
+            stack.push(actualType == typeTag ? BOOL_OFFSET + 1 : BOOL_OFFSET);
         }
     }
 
