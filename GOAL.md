@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-FIX-14: Documentation drift
+FIX-15: Parser _funcPs/_funcPc storage-as-return-value
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -11,7 +11,7 @@ FIX-14: Documentation drift
 - [x] Phase 3: Semantic Analysis — 24 tests passing
 - [x] Phase 4: Code Generation — 13 tests passing
 - [x] Phase 5: Bytecode Interpreter (VM) — 12 tests passing
-- [x] Phase 6: Integration & Test Suite — 177 tests passing
+- [x] Phase 6: Integration & Test Suite — 177 tests passing (now 629)
 - [x] For loop implementation (range, list iteration, break, continue)
 - [x] Negative number arithmetic (unchecked two's complement)
 - [x] Bubble sort test

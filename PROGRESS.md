@@ -949,3 +949,20 @@ Replaced `assertTrue(x > 0)` with `assertGe(x, expected)` to check minimum expec
 
 ### Test Results
 629/629 passing. No new tests, 0 regressions.
+
+---
+
+## 2026-05-12 — FIX-14: Documentation Drift
+
+### Problem
+ARCHITECTURE.md limitations listed "No global variables across functions" and "No import system" but both are implemented (global/nonlocal keywords, P2-A Import). GOAL.md Phase 6 still said "177 tests passing" when the current count is 629.
+
+### Approach
+Documentation-only fix. Updated ARCHITECTURE.md limitations to reflect current state. Updated GOAL.md Phase 6 test count.
+
+### Files Changed
+- `ARCHITECTURE.md` — Updated limitations section
+- `GOAL.md` — Updated Phase 6 test count
+
+### Test Results
+629/629 passing. No code changes.

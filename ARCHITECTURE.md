@@ -108,8 +108,8 @@ Solidity's limited string manipulation is the primary challenge. The lexer opera
 6. **VM**: Executes bytecode, returns result (or prints via events)
 
 ## Limitations (Known)
-- No global variables across functions (Phase 3 scope)
-- No import system (stdlib not available)
 - No generators/iterators
+- No class inheritance beyond single-level
 - Float arithmetic uses 6-digit fixed-point (FLOAT_SCALE = 1,000,000), not IEEE 754 — precision is limited to ~6 significant digits
+- GC reference counting only (no cycle detection)
 - String operations limited to comparison, concatenation, and basic methods (upper/lower/slice/split/contains/charAt)

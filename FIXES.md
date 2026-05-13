@@ -1,7 +1,7 @@
 # FIXES.md — Critical Fix Queue
 
 ## CURRENT_FIX
-FIX-14: Documentation drift
+FIX-15: Parser _funcPs/_funcPc storage-as-return-value
 
 ## COMPLETED
 - [x] FIX-1: _classifyType empty-list misclassification (commit 6a47a93, +5 tests)
@@ -29,7 +29,7 @@ FIX-14: Documentation drift
 - [x] FIX-11: Self-hosting bootstrap is not real
 - [x] FIX-12: Solidity & Yul backends produce unverified output
 - [x] FIX-13: Test assertions strengthen
-- [ ] FIX-14: Documentation drift
+- [x] FIX-14: Documentation drift
 - [ ] FIX-15: Parser _funcPs/_funcPc storage-as-return-value
 - [ ] FIX-16: _callArgs reset between Parser uses
 
@@ -45,6 +45,7 @@ FIX-14: Documentation drift
 - FIX-11: Documentation-only fix. "Self-hosting Bootstrap" was misleading — the mini_lexer.py is compiled by the Solidity compiler, not by itself. True self-hosting would require the compiler to compile its own source code. Updated GOAL.md to clarify this is a "Bootstrap Demo", not self-hosting.
 - FIX-12: Added structural validation tests for Solidity backend: balanced braces, non-trivial output, correct pragma/contract headers. 4 new tests across multiple program patterns (conditionals, loops, functions). Note: full end-to-end verification (compile generated Solidity and execute) is still not implemented.
 - FIX-13: Strengthened test assertions in Exception.t.sol: parser tests now check minimum node counts (assertGe instead of assertTrue > 0), lexer keyword tests check minimum token counts.
+- FIX-14: Updated ARCHITECTURE.md limitations (removed "no global variables" and "no import system" since both are implemented, added GC cycle detection limitation). Updated GOAL.md Phase 6 test count from 177 to 629.
 
 ## FOLLOW_UPS
 (things noticed but out of scope for current fix)
