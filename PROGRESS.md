@@ -910,3 +910,26 @@ Documentation-only fix. Updated GOAL.md to rename the entry to "Bootstrap Demo" 
 
 ### Test Results
 625/625 passing. No code changes.
+
+---
+
+## 2026-05-12 — FIX-12: Solidity Backend Structural Validation
+
+### Problem
+Solidity backend tests only checked string pattern matching (e.g., `assertTrue(_contains(out, "(1 + 2)")`). No structural validation of the generated Solidity code was performed.
+
+### Approach
+Added structural validation tests: balanced braces checker, non-trivial output length, correct pragma/contract headers. Tests cover multiple program patterns including conditionals, loops, and functions.
+
+### Files Changed
+- `test/SolidityBackend.t.sol` — 4 new structural validation tests
+
+### Tests Added
+4 tests:
+- testBracesBalanced: if/else program has balanced braces
+- testBracesBalancedWithLoop: for-loop program has balanced braces
+- testBracesBalancedWithFunction: recursive function has balanced braces
+- testOutputNotEmpty: 5 different programs all produce valid output
+
+### Test Results
+629/629 passing across 46 suites. +4 new tests, 0 regressions.

@@ -278,4 +278,53 @@ contract SolidityBackendTest is Test {
         assertTrue(_contains(out, "uint256 a, uint256 b, uint256 c"), "missing params");
         assertTrue(_contains(out, "add3(1, 2, 3)"), "missing call");
     }
+
+    // ==================== FIX-12: Structural Validation ====================
+
+    function _balancedBraces(string memory s) internal pure returns (bool) {
+        uint256 depth = 0;
+        bytes memory b = bytes(s);
+        for (uint256 i = 0; i < b.length; i++) {
+            if (b[i] == "{") depth++;
+            if (b[i] == "}") {
+                if (depth == 0) return false;
+                depth--;
+            }
+        }
+        return depth == 0;
+    }
+
+    function testBracesBalanced() public {
+        string memory src = "x = 1\nif x > 0:\n    x = 2\nelse:\n    x = 3\n";
+        string memory out = _transpile(src);
+        assertTrue(_balancedBraces(out), "braces should be balanced");
+    }
+
+    function testBracesBalancedWithLoop() public {
+        string memory src = "s = 0\nfor i in range(10):\n    s = s + i\nprint(s)\n";
+        string memory out = _transpile(src);
+        assertTrue(_balancedBraces(out), "braces should be balanced with loop");
+    }
+
+    function testBracesBalancedWithFunction() public {
+        string memory src = "def fib(n):\n    if n <= 1:\n        return n\n    return fib(n - 1) + fib(n - 2)\nx = fib(10)\n";
+        string memory out = _transpile(src);
+        assertTrue(_balancedBraces(out), "braces should be balanced with function");
+    }
+
+    function testOutputNotEmpty() public {
+        string[] memory programs = new string[](5);
+        programs[0] = "x = 42\n";
+        programs[1] = "x = 1\ny = 2\nz = x + y\n";
+        programs[2] = "for i in range(5):\n    print(i)\n";
+        programs[3] = "def add(a, b):\n    return a + b\nx = add(1, 2)\n";
+        programs[4] = "x = 1\nif x > 0:\n    x = 2\nelif x == 0:\n    x = 3\nelse:\n    x = 4\n";
+        for (uint256 i = 0; i < programs.length; i++) {
+            string memory out = _transpile(programs[i]);
+            assertTrue(bytes(out).length > 100, "output should be non-trivial");
+            assertTrue(_balancedBraces(out), "braces should be balanced");
+            assertTrue(_contains(out, "pragma solidity"), "should have pragma");
+            assertTrue(_contains(out, "contract Transpiled"), "should have contract");
+        }
+    }
 }

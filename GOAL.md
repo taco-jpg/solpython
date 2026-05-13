@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-FIX-12: Solidity & Yul backends produce unverified output
+FIX-13: Test assertions strengthen
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -60,7 +60,7 @@ FIX-12: Solidity & Yul backends produce unverified output
 (None yet)
 
 ## TEST_COUNT
-625 passing / 625 total
+629 passing / 629 total
 
 ## PHASE DETAILS
 

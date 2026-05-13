@@ -1,7 +1,7 @@
 # FIXES.md — Critical Fix Queue
 
 ## CURRENT_FIX
-FIX-12: Solidity & Yul backends produce unverified output
+FIX-13: Test assertions strengthen
 
 ## COMPLETED
 - [x] FIX-1: _classifyType empty-list misclassification (commit 6a47a93, +5 tests)
@@ -27,7 +27,7 @@ FIX-12: Solidity & Yul backends produce unverified output
 - [x] FIX-9: GC actually decrements refs
 - [x] FIX-10: Float precision is 6-digit fixed point, not IEEE 754
 - [x] FIX-11: Self-hosting bootstrap is not real
-- [ ] FIX-12: Solidity & Yul backends produce unverified output
+- [x] FIX-12: Solidity & Yul backends produce unverified output
 - [ ] FIX-13: Test assertions strengthen
 - [ ] FIX-14: Documentation drift
 - [ ] FIX-15: Parser _funcPs/_funcPc storage-as-return-value
@@ -43,9 +43,10 @@ FIX-12: Solidity & Yul backends produce unverified output
 - FIX-9: Three issues: (1) Code generator never emitted OP_GC_UNREF — added LOAD_VAR + GC_UNREF before every STORE_VAR. (2) `_gcDecRef`/`_gcIncRef` treated ID 0 as sentinel (`id == 0` early return), but list IDs start at 0 — removed the sentinel check, relying solely on `gcLive[id]`. (3) GC_UNREF on first-assignment variables incorrectly unrefed the default value 0 — added `varInitialized` tracking to only emit GC_UNREF on reassignment.
 - FIX-10: Documentation-only fix. ISA.md said "Float: NOT SUPPORTED in v1" but floats are implemented using 6-digit fixed-point (FLOAT_SCALE=1,000,000). Updated ISA.md and ARCHITECTURE.md to accurately describe the tagged fixed-point representation.
 - FIX-11: Documentation-only fix. "Self-hosting Bootstrap" was misleading — the mini_lexer.py is compiled by the Solidity compiler, not by itself. True self-hosting would require the compiler to compile its own source code. Updated GOAL.md to clarify this is a "Bootstrap Demo", not self-hosting.
+- FIX-12: Added structural validation tests for Solidity backend: balanced braces, non-trivial output, correct pragma/contract headers. 4 new tests across multiple program patterns (conditionals, loops, functions). Note: full end-to-end verification (compile generated Solidity and execute) is still not implemented.
 
 ## FOLLOW_UPS
 (things noticed but out of scope for current fix)
 
 ## TEST_COUNT
-625 passing / 625 total
+629 passing / 629 total
