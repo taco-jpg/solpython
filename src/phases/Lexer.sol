@@ -31,6 +31,13 @@ contract Lexer {
     }
 
     function tokenize(string memory input) public returns (Token[] memory) {
+        while (tokenTypes.length > 0) tokenTypes.pop();
+        while (tokenLexemes.length > 0) tokenLexemes.pop();
+        while (tokenIntValues.length > 0) tokenIntValues.pop();
+        while (tokenLines.length > 0) tokenLines.pop();
+        while (tokenColumns.length > 0) tokenColumns.pop();
+        while (indentStack.length > 1) indentStack.pop(); // keep initial 0
+
         source = StringLib.toBytes(input);
         pos = 0;
         line = 1;

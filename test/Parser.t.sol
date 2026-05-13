@@ -291,4 +291,33 @@ contract ParserTest is Test {
         // inner has 2 params
         assertEq(ast[innerIdx].auxCount, 2);
     }
+
+    // ==================== FIX-16: _callArgs reset between Parser uses ====================
+
+    function testParserReuse() public {
+        // Reusing the same Parser for two parses should not contaminate the second
+        lexer.tokenize("x = 1\n");
+        curParser = new Parser();
+        ASTNode[] memory ast1 = curParser.parse(lexer);
+        assertEq(ast1[0].auxCount, 1, "first parse: 1 statement");
+
+        // Second parse with the same Parser
+        lexer.tokenize("y = 2\n");
+        ASTNode[] memory ast2 = curParser.parse(lexer);
+        assertEq(ast2[0].auxCount, 1, "second parse: 1 statement");
+    }
+
+    function testParserReuseWithFunctionCall() public {
+        // Function call args use _callArgs — reusing Parser should not leak old args
+        lexer.tokenize("foo(1, 2)\n");
+        curParser = new Parser();
+        curParser.parse(lexer);
+
+        lexer.tokenize("bar(3)\n");
+        ASTNode[] memory ast2 = curParser.parse(lexer);
+        // bar(3) should have exactly 1 arg
+        uint256 callIdx = ast2[_firstStmt(ast2)].child1;
+        assertEq(ast2[callIdx].strValue, "bar");
+        assertEq(ast2[callIdx].auxCount, 1, "bar should have 1 arg");
+    }
 }

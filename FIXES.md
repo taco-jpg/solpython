@@ -1,7 +1,7 @@
 # FIXES.md — Critical Fix Queue
 
 ## CURRENT_FIX
-FIX-16: _callArgs reset between Parser uses
+(None — all fixes complete)
 
 ## COMPLETED
 - [x] FIX-1: _classifyType empty-list misclassification (commit 6a47a93, +5 tests)
@@ -31,7 +31,7 @@ FIX-16: _callArgs reset between Parser uses
 - [x] FIX-13: Test assertions strengthen
 - [x] FIX-14: Documentation drift
 - [x] FIX-15: Parser _funcPs/_funcPc storage-as-return-value
-- [ ] FIX-16: _callArgs reset between Parser uses
+- [x] FIX-16: _callArgs reset between Parser uses
 
 ## BLOCKERS
 - FIX-1: `len([])` returns 0 which is also a valid list ID. This is a value-space collision that requires type tagging (FIX-2) to fully resolve. Decision: accept this limitation for FIX-1, document it. FIX-2 will introduce BOOL_TAG and address 0/1 ambiguity.
@@ -47,9 +47,10 @@ FIX-16: _callArgs reset between Parser uses
 - FIX-13: Strengthened test assertions in Exception.t.sol: parser tests now check minimum node counts (assertGe instead of assertTrue > 0), lexer keyword tests check minimum token counts.
 - FIX-14: Updated ARCHITECTURE.md limitations (removed "no global variables" and "no import system" since both are implemented, added GC cycle detection limitation). Updated GOAL.md Phase 6 test count from 177 to 629.
 - FIX-15: `_funcPs` and `_funcPc` were storage variables shared across all function definitions. Nested function definitions would overwrite them before the outer function's `_emit` call, causing the outer function to get the inner function's parameter count. Fixed by making `_parseFuncParams` return `(uint256 ps, uint256 pc)` and using local variables in `_funcDef`.
+- FIX-16: Both Lexer and Parser accumulated state in storage arrays across multiple calls. Lexer's `tokenize()` and Parser's `parse()` didn't reset their storage arrays, so reusing the same contract instance contaminated subsequent calls. Fixed by adding array resets at the start of both functions.
 
 ## FOLLOW_UPS
 (things noticed but out of scope for current fix)
 
 ## TEST_COUNT
-630 passing / 630 total
+632 passing / 632 total

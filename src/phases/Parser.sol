@@ -45,7 +45,28 @@ contract Parser {
     // Temp storage for function call argument nodes (avoids exprAux interleaving)
     uint256[] private _callArgs;
 
+    function _resetArrays() internal {
+        while (nts.length > 0) nts.pop();
+        while (c1s.length > 0) c1s.pop();
+        while (c2s.length > 0) c2s.pop();
+        while (c3s.length > 0) c3s.pop();
+        while (ais.length > 0) ais.pop();
+        while (acs.length > 0) acs.pop();
+        while (ivs.length > 0) ivs.pop();
+        while (svs.length > 0) svs.pop();
+        while (nls.length > 0) nls.pop();
+        while (ncs.length > 0) ncs.pop();
+        while (aux.length > 0) aux.pop();
+        while (exprAux.length > 0) exprAux.pop();
+        while (bodyStackIdx.length > 0) bodyStackIdx.pop();
+        while (bodyNodeIdx.length > 0) bodyNodeIdx.pop();
+        while (_bodyNesting.length > 0) _bodyNesting.pop();
+        while (_callArgs.length > 0) _callArgs.pop();
+        while (bodyStack.length > 0) bodyStack.pop();
+    }
+
     function parse(Lexer _lexer) public returns (ASTNode[] memory) {
+        _resetArrays();
         lexer = _lexer;
         tokenCount = _lexer.getTokenCount();
         p = 0;

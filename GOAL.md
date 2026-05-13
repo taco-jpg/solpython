@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-FIX-16: _callArgs reset between Parser uses
+(None — all fixes complete)
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -60,7 +60,7 @@ FIX-16: _callArgs reset between Parser uses
 (None yet)
 
 ## TEST_COUNT
-630 passing / 630 total
+632 passing / 632 total
 
 ## PHASE DETAILS
 
