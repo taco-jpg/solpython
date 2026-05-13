@@ -169,4 +169,34 @@ contract IntegrationTest is Test {
         }
         assertTrue(found, "No PrintString event emitted");
     }
+
+    // ==================== FIX-15b: Nested function end-to-end ====================
+
+    function testNestedFunctionDefinition() public {
+        string memory src = string.concat(
+            "def outer(x):\n",
+            "    def inner(y):\n",
+            "        return y * 2\n",
+            "    return inner(x) + 1\n",
+            "print(outer(5))\n"
+        );
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        bytes32 printTopic = keccak256("Print(uint256[])");
+        bool found = false;
+        for (uint256 i = logs.length; i > 0; i--) {
+            if (logs[i - 1].topics[0] == printTopic) {
+                uint256[] memory vals = abi.decode(logs[i - 1].data, (uint256[]));
+                assertEq(vals[0], 11, "outer(5) = inner(5) + 1 = 10 + 1 = 11");
+                found = true;
+                break;
+            }
+        }
+        assertTrue(found, "should have Print event");
+    }
+
 }

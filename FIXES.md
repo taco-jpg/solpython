@@ -50,7 +50,18 @@
 - FIX-16: Both Lexer and Parser accumulated state in storage arrays across multiple calls. Lexer's `tokenize()` and Parser's `parse()` didn't reset their storage arrays, so reusing the same contract instance contaminated subsequent calls. Fixed by adding array resets at the start of both functions.
 
 ## FOLLOW_UPS
-(things noticed but out of scope for current fix)
+- Closures (lexical scoping): inner functions cannot access outer function's parameters. Not a FIX-15 bug — requires full closure support which is not implemented.
+- Bootstrap execution: mini_lexer.py compiles but execution hits stack underflow at runtime. Documented as KNOWN_LIMITATION in Bootstrap.t.sol.
+- Backend limitations: Solidity and Yul backends don't support try/except, dict/set types, or slice. Documented in BACKEND_LIMITATIONS.md.
 
 ## TEST_COUNT
-632 passing / 632 total
+644 passing / 644 total
+
+## AUDIT_RESULTS
+- AUDIT-1: [FIXED] Import/VFS/Venv/Bootstrap — 16 weak assertions strengthened with Print event value checks
+- AUDIT-2: [FIXED] Yul backend — 5 structural validation tests added (_balancedBraces, non-trivial output, function placement). Created BACKEND_LIMITATIONS.md.
+- AUDIT-3: [CLEAN] GC shared reference — verified list ID 0 not falsely freed on variable assignment. 2 tests added confirming safety.
+- AUDIT-4: [FIXED] Negative int classification — _classifyType returned TYPE_STR for -1 (2^256-1 >= 2^62). Added `val >= INT_MIN` check before string check. 4 tests added. Real bug fixed.
+- AUDIT-5: [CLEAN] Bool tagging arithmetic — all arithmetic ops untagBool, all comparisons return tagged bools. 45/45 TypeClassify tests pass.
+- AUDIT-6: [CLEAN] No TODO/FIXME/HACK in source. Backend "not supported" comments are documented feature gaps.
+- AUDIT-7: [FIXED] Nested function execution — added end-to-end test `testNestedFunctionDefinition` (outer(5)=11). Parser test existed but no execution test. 1 test added.
