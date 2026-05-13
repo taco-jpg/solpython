@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-FEAT-5: Keyword Arguments
+FEAT-6: Ternary Expression
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -37,6 +37,7 @@ FEAT-5: Keyword Arguments
 - [x] Tuple Type (8 tests, tuple literals, indexing, unpacking, swap pattern)
 - [x] Multiple Assignment (covered by tuple unpacking: a, b = 1, 2)
 - [x] Default Parameters (7 tests, def f(x, y=10), expression defaults, partial/override)
+- [x] Keyword Arguments (7 tests, positional + keyword mix, reorder, defaults + kwargs)
 
 ## IN_PROGRESS
 (None — all features complete)
@@ -48,7 +49,7 @@ FEAT-5: Keyword Arguments
 (None yet)
 
 ## TEST_COUNT
-479 passing / 479 total
+486 passing / 486 total
 
 ## PHASE DETAILS
 

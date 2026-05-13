@@ -40,6 +40,9 @@ contract CodeGenerator {
     mapping(bytes32 => bool) private _classNames;
     mapping(bytes32 => bool) private _classHasInit;
 
+    // Temporary storage for keyword argument reordering
+    uint256[] private _kwargOrder;
+
     // Parser reference
     Parser private parser;
 
@@ -992,6 +995,17 @@ contract CodeGenerator {
         string memory name = _sv(nodeIdx);
         uint256 argCount = _ac(nodeIdx);
 
+        // Check for keyword arguments
+        bool hasKwargs = false;
+        for (uint256 i = 0; i < argCount; i++) {
+            if (_nt(_ea(_ai(nodeIdx) + i)) == NodeType.KEYWORD_ARG) { hasKwargs = true; break; }
+        }
+
+        if (hasKwargs) {
+            _genFuncCallWithKwargs(name, nodeIdx);
+            return;
+        }
+
         // Push arguments
         for (uint256 i = 0; i < argCount; i++) {
             _genExpr(_ea(_ai(nodeIdx) + i));
@@ -1131,6 +1145,67 @@ contract CodeGenerator {
             }
         }
         return expected;
+    }
+
+    function _genFuncCallWithKwargs(string memory name, uint256 nodeIdx) internal {
+        uint256 argCount = _ac(nodeIdx);
+        uint256 argStart = _ai(nodeIdx);
+        uint256 expected = parser.getFuncParamCount(name);
+        uint256 defCnt = parser.getFuncDefaultCount(name);
+        uint256 paramStart = parser.getFuncParamStart(name);
+
+        // Initialize _kwargOrder with type(uint256).max = "not provided"
+        while (_kwargOrder.length > 0) _kwargOrder.pop();
+        for (uint256 i = 0; i < expected; i++) {
+            _kwargOrder.push(type(uint256).max);
+        }
+
+        // Place positional args
+        uint256 posIdx = 0;
+        for (uint256 i = 0; i < argCount; i++) {
+            uint256 argNode = _ea(argStart + i);
+            if (_nt(argNode) != NodeType.KEYWORD_ARG) {
+                _kwargOrder[posIdx] = argNode;
+                posIdx++;
+            }
+        }
+
+        // Place keyword args by matching name to param position
+        for (uint256 i = 0; i < argCount; i++) {
+            uint256 argNode = _ea(argStart + i);
+            if (_nt(argNode) == NodeType.KEYWORD_ARG) {
+                string memory kwName = _sv(argNode);
+                for (uint256 j = 0; j < expected; j++) {
+                    uint256 paramNode = parser.getExprAuxData(paramStart + j);
+                    if (keccak256(bytes(parser.getStrValue(paramNode))) == keccak256(bytes(kwName))) {
+                        _kwargOrder[j] = _c1(argNode);
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Fill defaults for remaining slots
+        uint256 firstDef = expected - defCnt;
+        for (uint256 i = 0; i < expected; i++) {
+            if (_kwargOrder[i] == type(uint256).max) {
+                uint256 di = i - firstDef;
+                if (di < defCnt) {
+                    _kwargOrder[i] = _c1(parser.getFuncDefaultNode(name, di));
+                }
+            }
+        }
+
+        // Generate code: push args in param order
+        for (uint256 i = 0; i < expected; i++) {
+            _genExpr(_kwargOrder[i]);
+        }
+
+        // Emit CALL
+        _emitOp(OP_CALL);
+        _emitUint16(uint16(expected));
+        _emitUint32(0);
+        _backpatchFunc(name, code.length - 4);
     }
 
     function _genListLiteral(uint256 nodeIdx) internal {

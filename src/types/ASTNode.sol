@@ -61,7 +61,10 @@ enum NodeType {
     TUPLE_LITERAL,      // (a, b, c)  exprAux = [e0, e1, ...]
 
     // Default parameters
-    DEFAULT_VALUE       // sentinel for default param: child1 = default expr node
+    DEFAULT_VALUE,      // sentinel for default param: child1 = default expr node
+
+    // Keyword arguments
+    KEYWORD_ARG         // name=value in function call: strValue=name, child1=value
 }
 
 enum BinaryOpType {

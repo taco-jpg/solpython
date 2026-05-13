@@ -40,6 +40,7 @@ contract Parser {
     mapping(string => uint256[]) private _funcDefaults;
     mapping(string => uint256) private _funcDefaultCount;
     mapping(string => uint256) private _funcParamCount;
+    mapping(string => uint256) private _funcParamStart; // start index in exprAux for param names
 
     function parse(Lexer _lexer) public returns (ASTNode[] memory) {
         lexer = _lexer;
@@ -136,6 +137,7 @@ contract Parser {
         _funcPc = pc;
         _funcDefaultCount[name] = defaultCnt;
         _funcParamCount[name] = pc;
+        _funcParamStart[name] = _funcPs;
     }
 
     function _ifStmt() internal returns (uint256) {
@@ -641,12 +643,20 @@ contract Parser {
         _exp(TokenType.LPAREN);
         uint256 argCnt = 0;
         while (_cur() != TokenType.RPAREN && !_end()) {
-            exprAux.push(_expr());
+            uint256 argExpr = _expr();
+            // Check for keyword argument: name = expr
+            if (_cur() == TokenType.OP_ASSIGN && nts[argExpr] == NodeType.IDENTIFIER_REF) {
+                _adv(); // consume =
+                string memory kwName = svs[argExpr];
+                uint256 kwVal = _expr();
+                exprAux.push(_emit(NodeType.KEYWORD_ARG, kwVal, 0, 0, 0, 0, 0, kwName, _ln(), _col()));
+            } else {
+                exprAux.push(argExpr);
+            }
             argCnt++;
             if (_cur() == TokenType.COMMA) _adv();
         }
         _exp(TokenType.RPAREN);
-        // Compute start after all pushes to handle nested calls correctly
         uint256 argStart = exprAux.length - argCnt;
         uint256 node = _emit(NodeType.FUNC_CALL, 0, 0, 0, argStart, argCnt, 0, name, ln, col);
         if (_cur() == TokenType.LBRACKET) return _idxAccess(node);
@@ -904,6 +914,7 @@ contract Parser {
     function getFuncDefaultCount(string memory funcName) public view returns (uint256) { return _funcDefaultCount[funcName]; }
     function getFuncParamCount(string memory funcName) public view returns (uint256) { return _funcParamCount[funcName]; }
     function getFuncDefaultNode(string memory funcName, uint256 index) public view returns (uint256) { return _funcDefaults[funcName][index]; }
+    function getFuncParamStart(string memory funcName) public view returns (uint256) { return _funcParamStart[funcName]; }
 
     // Mutators for optimizer
     function setNodeType(uint256 index, NodeType nt) public { nts[index] = nt; }
