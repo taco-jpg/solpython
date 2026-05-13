@@ -7,12 +7,26 @@ import {PythonCompiler} from "../src/PythonCompiler.sol";
 import {VM} from "../src/phases/VM.sol";
 
 contract VFSTest is Test {
+    event Print(uint256[] values);
+
     VFS private vfs;
     PythonCompiler private compiler;
 
     function setUp() public {
         vfs = new VFS();
         compiler = new PythonCompiler();
+    }
+
+    function _getLastPrint() internal returns (uint256) {
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        bytes32 printTopic = keccak256("Print(uint256[])");
+        for (uint256 i = logs.length; i > 0; i--) {
+            if (logs[i - 1].topics[0] == printTopic) {
+                uint256[] memory vals = abi.decode(logs[i - 1].data, (uint256[]));
+                return vals[0];
+            }
+        }
+        return type(uint256).max;
     }
 
     // ==================== Basic CRUD ====================
@@ -107,8 +121,10 @@ contract VFSTest is Test {
         string memory mainSrc = "from math import add\nx = add(3, 4)\nprint(x)\n";
         bytes memory bytecode = compiler.compileWithVFS(mainSrc, vfs);
 
-        VM vmInst = new VM();
-        vmInst.execute(bytecode);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 7, "add(3,4) = 7");
     }
 
     function testCompileWithVFSMultipleModules() public {
@@ -118,16 +134,20 @@ contract VFSTest is Test {
         string memory mainSrc = "from math import add\nfrom calc import mul\nx = add(2, mul(3, 4))\nprint(x)\n";
         bytes memory bytecode = compiler.compileWithVFS(mainSrc, vfs);
 
-        VM vmInst = new VM();
-        vmInst.execute(bytecode);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 14, "add(2, mul(3,4)) = 14");
     }
 
     function testCompileWithVFSNoImports() public {
         string memory mainSrc = "x = 42\nprint(x)\n";
         bytes memory bytecode = compiler.compileWithVFS(mainSrc, vfs);
 
-        VM vmInst = new VM();
-        vmInst.execute(bytecode);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 42, "x = 42");
     }
 
     function testCompileWithVFSMissingModule() public {

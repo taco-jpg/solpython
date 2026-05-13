@@ -8,6 +8,19 @@ import {PythonCompiler} from "../src/PythonCompiler.sol";
 import {VM} from "../src/phases/VM.sol";
 
 contract VenvTest is Test {
+    event Print(uint256[] values);
+
+    function _getLastPrint() internal returns (uint256) {
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        bytes32 printTopic = keccak256("Print(uint256[])");
+        for (uint256 i = logs.length; i > 0; i--) {
+            if (logs[i - 1].topics[0] == printTopic) {
+                uint256[] memory vals = abi.decode(logs[i - 1].data, (uint256[]));
+                return vals[0];
+            }
+        }
+        return type(uint256).max;
+    }
     // ==================== Basic Creation ====================
 
     function testCreateVenv() public {
@@ -127,19 +140,19 @@ contract VenvTest is Test {
         PythonCompiler compiler = new PythonCompiler();
         string memory mainSrc = "from math import add\nx = add(3, 4)\nprint(x)\n";
 
-        // Resolve the module
         (string memory modPath, bool found) = env.resolveModule("math");
         assertTrue(found);
 
-        // Compile with imports
         string[] memory names = new string[](1);
         names[0] = "math";
         string[] memory sources = new string[](1);
         sources[0] = env.readFile(modPath);
 
         bytes memory bytecode = compiler.compileWithImports(mainSrc, names, sources);
-        VM vm = new VM();
-        vm.execute(bytecode);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 7, "add(3,4) = 7");
     }
 
     function testVenvMultipleModules() public {
@@ -150,7 +163,6 @@ contract VenvTest is Test {
 
         PythonCompiler compiler = new PythonCompiler();
 
-        // Resolve modules
         (string memory mathPath, bool mFound) = env.resolveModule("math");
         (string memory calcPath, bool cFound) = env.resolveModule("calc");
         assertTrue(mFound);
@@ -168,7 +180,9 @@ contract VenvTest is Test {
             names,
             sources
         );
-        VM vm = new VM();
-        vm.execute(bytecode);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 14, "add(2, mul(3,4)) = 14");
     }
 }
