@@ -98,6 +98,8 @@ contract Parser {
         if (t == TokenType.KW_FROM) return _fromImportStmt();
         if (t == TokenType.KW_TRY) return _tryStmt();
         if (t == TokenType.KW_RAISE) return _raiseStmt();
+        if (t == TokenType.KW_GLOBAL) return _globalStmt();
+        if (t == TokenType.KW_NONLOCAL) return _nonlocalStmt();
         return _assignOrExpr();
     }
 
@@ -400,6 +402,43 @@ contract Parser {
         }
 
         return _emit(NodeType.RAISE_STMT, excExpr, 0, 0, 0, 0, 0, "", ln, col);
+    }
+
+    function _globalStmt() internal returns (uint256) {
+        uint256 ln = _ln(); uint256 col = _col();
+        _adv(); // skip 'global'
+        // Parse comma-separated variable names
+        uint256 nameCount = 0;
+        uint256 firstVar = 0;
+        do {
+            string memory name = _lex();
+            _exp(TokenType.IDENTIFIER);
+            uint256 varNode = _emit(NodeType.IDENTIFIER_REF, 0, 0, 0, 0, 0, 0, name, ln, col);
+            if (nameCount == 0) firstVar = varNode;
+            nameCount++;
+            if (_cur() == TokenType.COMMA) _adv();
+            else break;
+        } while (true);
+        // Store first variable in child1, count in auxCount
+        return _emit(NodeType.GLOBAL_STMT, firstVar, 0, 0, 0, nameCount, 0, "", ln, col);
+    }
+
+    function _nonlocalStmt() internal returns (uint256) {
+        uint256 ln = _ln(); uint256 col = _col();
+        _adv(); // skip 'nonlocal'
+        // Parse comma-separated variable names
+        uint256 nameCount = 0;
+        uint256 firstVar = 0;
+        do {
+            string memory name = _lex();
+            _exp(TokenType.IDENTIFIER);
+            uint256 varNode = _emit(NodeType.IDENTIFIER_REF, 0, 0, 0, 0, 0, 0, name, ln, col);
+            if (nameCount == 0) firstVar = varNode;
+            nameCount++;
+            if (_cur() == TokenType.COMMA) _adv();
+            else break;
+        } while (true);
+        return _emit(NodeType.NONLOCAL_STMT, firstVar, 0, 0, 0, nameCount, 0, "", ln, col);
     }
 
     function _parseFString() internal returns (uint256) {

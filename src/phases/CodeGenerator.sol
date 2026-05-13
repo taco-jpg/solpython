@@ -23,6 +23,10 @@ contract CodeGenerator {
     mapping(uint256 => uint256) private varCount; // next slot per scope
     uint256 private currentScope;
 
+    // Global/nonlocal tracking: scope → name → isGlobal
+    mapping(uint256 => mapping(bytes32 => bool)) private _globalVars;
+    mapping(uint256 => mapping(bytes32 => bool)) private _nonlocalVars;
+
     // Backpatching stacks
     uint256[] private jumpPatchOffsets; // bytecode offsets where jump targets need to be filled
 
@@ -233,6 +237,10 @@ contract CodeGenerator {
             _genTryStmt(nodeIdx);
         } else if (nt == NodeType.RAISE_STMT) {
             _genRaiseStmt(nodeIdx);
+        } else if (nt == NodeType.GLOBAL_STMT) {
+            _genGlobalStmt(nodeIdx);
+        } else if (nt == NodeType.NONLOCAL_STMT) {
+            _genNonlocalStmt(nodeIdx);
         }
     }
 
@@ -1170,6 +1178,26 @@ contract CodeGenerator {
         _emitOp(OP_RAISE);
     }
 
+    function _genGlobalStmt(uint256 nodeIdx) internal {
+        uint256 varNode = _c1(nodeIdx);
+        uint256 count = _ac(nodeIdx);
+        for (uint256 i = 0; i < count; i++) {
+            bytes32 key = keccak256(bytes(_sv(varNode)));
+            _globalVars[currentScope][key] = true;
+            if (i + 1 < count) varNode++;
+        }
+    }
+
+    function _genNonlocalStmt(uint256 nodeIdx) internal {
+        uint256 varNode = _c1(nodeIdx);
+        uint256 count = _ac(nodeIdx);
+        for (uint256 i = 0; i < count; i++) {
+            bytes32 key = keccak256(bytes(_sv(varNode)));
+            _nonlocalVars[currentScope][key] = true;
+            if (i + 1 < count) varNode++;
+        }
+    }
+
     // ==================== Expression Generation ====================
 
     function _genExpr(uint256 nodeIdx) internal {
@@ -1785,6 +1813,16 @@ contract CodeGenerator {
     function _genLoadVar(uint256 nodeIdx) internal {
         string memory name = _sv(nodeIdx);
         bytes32 key = keccak256(bytes(name));
+
+        // Check if variable is declared global
+        if (_globalVars[currentScope][key]) {
+            uint256 slot = varSlots[0][key];
+            _emitOp(OP_LOAD_VAR);
+            _emitByte(0); // frame 0 = global
+            _emitByte(uint8(slot));
+            return;
+        }
+
         uint256 slot = varSlots[currentScope][key];
         if (slot == 0 && varCount[currentScope] == 0) {
             // Try global scope
@@ -1798,6 +1836,20 @@ contract CodeGenerator {
     function _genStoreVar(uint256 nodeIdx) internal {
         string memory name = _sv(nodeIdx);
         bytes32 key = keccak256(bytes(name));
+
+        // Check if variable is declared global
+        if (_globalVars[currentScope][key]) {
+            if (varSlots[0][key] == 0) {
+                varCount[0]++;
+                varSlots[0][key] = varCount[0];
+            }
+            uint256 slot = varSlots[0][key];
+            _emitOp(OP_STORE_VAR);
+            _emitByte(0); // frame 0 = global
+            _emitByte(uint8(slot));
+            return;
+        }
+
         if (varSlots[currentScope][key] == 0 && varCount[currentScope] == 0) {
             // New variable
             varCount[currentScope]++;

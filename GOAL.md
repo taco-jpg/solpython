@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-FEAT-16: Global and Nonlocal
+(None — all features complete)
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -48,9 +48,10 @@ FEAT-16: Global and Nonlocal
 - [x] Dict Methods (7 tests, items/values/get/update opcodes, GC-registered)
 - [x] Sorted and Reversed (7 tests, OP_SORTED/OP_REVERSED, bubble sort, new list creation)
 - [x] VFS Directory Structure (8 tests, mkdir/rmdir/listDir/isDir, nested dirs, path normalization)
+- [x] Global and Nonlocal (3 tests, global/nonlocal keywords, scope-aware variable resolution)
 
 ## IN_PROGRESS
-FEAT-16: Global and Nonlocal
+(None — all features complete)
 
 ## NEXT_UP
 (None — all features complete)
@@ -59,7 +60,7 @@ FEAT-16: Global and Nonlocal
 (None yet)
 
 ## TEST_COUNT
-562 passing / 562 total
+565 passing / 565 total
 
 ## PHASE DETAILS
 

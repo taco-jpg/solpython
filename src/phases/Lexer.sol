@@ -256,6 +256,8 @@ contract Lexer {
         if (hash == keccak256("except")) return TokenType.KW_EXCEPT;
         if (hash == keccak256("finally")) return TokenType.KW_FINALLY;
         if (hash == keccak256("raise")) return TokenType.KW_RAISE;
+        if (hash == keccak256("global")) return TokenType.KW_GLOBAL;
+        if (hash == keccak256("nonlocal")) return TokenType.KW_NONLOCAL;
         return TokenType.IDENTIFIER;
     }
 

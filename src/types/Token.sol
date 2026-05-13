@@ -38,6 +38,8 @@ enum TokenType {
     KW_EXCEPT,
     KW_FINALLY,
     KW_RAISE,
+    KW_GLOBAL,
+    KW_NONLOCAL,
 
     // Arithmetic operators
     OP_PLUS,       // +

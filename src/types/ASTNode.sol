@@ -25,6 +25,8 @@ enum NodeType {
     EXCEPT_BRANCH,      // except [Type]: body
     FINALLY_BRANCH,     // finally: body
     RAISE_STMT,         // raise [expr]
+    GLOBAL_STMT,        // global x [, y, ...]
+    NONLOCAL_STMT,      // nonlocal x [, y, ...]
 
     // Expressions
     BINARY_OP,          // a + b, a - b, etc

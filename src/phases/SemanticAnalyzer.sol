@@ -104,6 +104,26 @@ contract SemanticAnalyzer {
             if (_c2(nodeIdx) != 0) _analyzeBlock(_c2(nodeIdx));
         } else if (nt == NodeType.RAISE_STMT) {
             if (_c1(nodeIdx) != 0) _analyzeExpr(_c1(nodeIdx));
+        } else if (nt == NodeType.GLOBAL_STMT) {
+            // Mark variables as global (not local) in current scope
+            uint256 varNode = _c1(nodeIdx);
+            uint256 count = _ac(nodeIdx);
+            for (uint256 i = 0; i < count; i++) {
+                bytes32 key = keccak256(bytes(_sv(varNode)));
+                scopeIsLocal[_currentScope()][key] = false;
+                // Define in global scope
+                _defineSymbolInScope(0, _sv(varNode), 0);
+                if (i + 1 < count) varNode++; // next variable node
+            }
+        } else if (nt == NodeType.NONLOCAL_STMT) {
+            // Mark variables as nonlocal (not local) in current scope
+            uint256 varNode = _c1(nodeIdx);
+            uint256 count = _ac(nodeIdx);
+            for (uint256 i = 0; i < count; i++) {
+                bytes32 key = keccak256(bytes(_sv(varNode)));
+                scopeIsLocal[_currentScope()][key] = false;
+                if (i + 1 < count) varNode++;
+            }
         } else if (nt == NodeType.EXPR_STMT) {
             _analyzeExpr(_c1(nodeIdx));
         }
@@ -414,6 +434,12 @@ contract SemanticAnalyzer {
         symTypes[scope][key] = typeIdx;
         symDefined[scope][key] = true;
         scopeSymbolCounts[scope]++;
+    }
+
+    function _defineSymbolInScope(uint256 scope, string memory name, uint256 typeIdx) internal {
+        bytes32 key = keccak256(bytes(name));
+        symTypes[scope][key] = typeIdx;
+        symDefined[scope][key] = true;
     }
 
     function _checkUnboundLocal(string memory name, uint256 nodeIdx) internal {
