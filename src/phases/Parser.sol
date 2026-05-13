@@ -42,6 +42,9 @@ contract Parser {
     mapping(string => uint256) private _funcParamCount;
     mapping(string => uint256) private _funcParamStart; // start index in exprAux for param names
 
+    // Temp storage for function call argument nodes (avoids exprAux interleaving)
+    uint256[] private _callArgs;
+
     function parse(Lexer _lexer) public returns (ASTNode[] memory) {
         lexer = _lexer;
         tokenCount = _lexer.getTokenCount();
@@ -207,8 +210,7 @@ contract Parser {
     function _forLoop() internal returns (uint256) {
         _forLn = _ln(); _forCol = _col();
         _adv();
-        string memory varName = _lex();
-        _exp(TokenType.IDENTIFIER);
+        uint256 varNode = _parseForTarget();
         _skipNL();
         _exp(TokenType.KW_IN);
         uint256 iter = _expr();
@@ -218,7 +220,27 @@ contract Parser {
         uint256 body = _suite();
         _bodyPopTo(lvl, body);
         _forElseBody = _parseElseClause();
-        return _emit(NodeType.FOR_LOOP, _emit(NodeType.IDENTIFIER_REF, 0, 0, 0, 0, 0, 0, varName, _forLn, _forCol), iter, body, _forElseBody, 0, 0, "", _forLn, _forCol);
+        return _emit(NodeType.FOR_LOOP, varNode, iter, body, _forElseBody, 0, 0, "", _forLn, _forCol);
+    }
+
+    function _parseForTarget() internal returns (uint256) {
+        string memory name = _lex();
+        _exp(TokenType.IDENTIFIER);
+        if (_cur() != TokenType.COMMA) {
+            return _emit(NodeType.IDENTIFIER_REF, 0, 0, 0, 0, 0, 0, name, _forLn, _forCol);
+        }
+        // Tuple target: a, b, c
+        uint256 ec = 1;
+        exprAux.push(_emit(NodeType.IDENTIFIER_REF, 0, 0, 0, 0, 0, 0, name, _forLn, _forCol));
+        while (_cur() == TokenType.COMMA) {
+            _adv();
+            string memory nextName = _lex();
+            _exp(TokenType.IDENTIFIER);
+            exprAux.push(_emit(NodeType.IDENTIFIER_REF, 0, 0, 0, 0, 0, 0, nextName, _forLn, _forCol));
+            ec++;
+        }
+        uint256 es = exprAux.length - ec;
+        return _emit(NodeType.TUPLE_LITERAL, 0, 0, 0, es, ec, 0, "", _forLn, _forCol);
     }
 
     function _parseElseClause() internal returns (uint256) {
@@ -688,6 +710,7 @@ contract Parser {
 
     function _funcCall(string memory name, uint256 ln, uint256 col) internal returns (uint256) {
         _exp(TokenType.LPAREN);
+        uint256 myStart = _callArgs.length;
         uint256 argCnt = 0;
         while (_cur() != TokenType.RPAREN && !_end()) {
             uint256 argExpr = _expr();
@@ -696,15 +719,21 @@ contract Parser {
                 _adv(); // consume =
                 string memory kwName = svs[argExpr];
                 uint256 kwVal = _expr();
-                exprAux.push(_emit(NodeType.KEYWORD_ARG, kwVal, 0, 0, 0, 0, 0, kwName, _ln(), _col()));
+                _callArgs.push(_emit(NodeType.KEYWORD_ARG, kwVal, 0, 0, 0, 0, 0, kwName, _ln(), _col()));
             } else {
-                exprAux.push(argExpr);
+                _callArgs.push(argExpr);
             }
             argCnt++;
             if (_cur() == TokenType.COMMA) _adv();
         }
         _exp(TokenType.RPAREN);
-        uint256 argStart = exprAux.length - argCnt;
+        // Push arg nodes contiguously to exprAux
+        uint256 argStart = exprAux.length;
+        for (uint256 i = 0; i < argCnt; i++) {
+            exprAux.push(_callArgs[myStart + i]);
+        }
+        // Remove my args from _callArgs
+        while (_callArgs.length > myStart) _callArgs.pop();
         uint256 node = _emit(NodeType.FUNC_CALL, 0, 0, 0, argStart, argCnt, 0, name, ln, col);
         if (_cur() == TokenType.LBRACKET) return _idxAccess(node);
         return node;
@@ -713,7 +742,8 @@ contract Parser {
     function _methodCall(string memory objName, uint256 ln, uint256 col) internal returns (uint256) {
         // obj is already parsed as IDENTIFIER_REF — create it and push as first arg
         uint256 objNode = _emit(NodeType.IDENTIFIER_REF, 0, 0, 0, 0, 0, 0, objName, ln, col);
-        exprAux.push(objNode);
+        uint256 myStart = _callArgs.length;
+        _callArgs.push(objNode);
         uint256 argCnt = 1; // object is first argument
 
         _exp(TokenType.DOT); // consume the dot
@@ -723,12 +753,18 @@ contract Parser {
 
         _exp(TokenType.LPAREN);
         while (_cur() != TokenType.RPAREN && !_end()) {
-            exprAux.push(_expr());
+            _callArgs.push(_expr());
             argCnt++;
             if (_cur() == TokenType.COMMA) _adv();
         }
         _exp(TokenType.RPAREN);
-        uint256 argStart = exprAux.length - argCnt;
+        // Push arg nodes contiguously to exprAux
+        uint256 argStart = exprAux.length;
+        for (uint256 i = 0; i < argCnt; i++) {
+            exprAux.push(_callArgs[myStart + i]);
+        }
+        // Remove my args from _callArgs
+        while (_callArgs.length > myStart) _callArgs.pop();
         uint256 node = _emit(NodeType.FUNC_CALL, 0, 0, 0, argStart, argCnt, 0, methodName, methodLn, methodCol);
         if (_cur() == TokenType.LBRACKET) return _idxAccess(node);
         return node;

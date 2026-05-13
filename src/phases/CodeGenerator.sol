@@ -447,7 +447,7 @@ contract CodeGenerator {
 
         uint256 iterIdx = _c2(nodeIdx);
         uint256 varIdx = _c1(nodeIdx);
-        string memory loopVar = _sv(varIdx);
+        uint256 elseBody = _ai(nodeIdx); // auxIndex = else body (0 if none)
 
         // Push loop context for break/continue
         uint256 breakStart = _breakPatches.length;
@@ -455,15 +455,24 @@ contract CodeGenerator {
         uint256 continueStart = _continuePatches.length;
         _continueContextStart.push(continueStart);
 
-        uint256 elseBody = _ai(nodeIdx); // auxIndex = else body (0 if none)
-
-        if (_nt(iterIdx) == NodeType.FUNC_CALL && keccak256(bytes(_sv(iterIdx))) == keccak256("range")) {
-            _genForRange(nodeIdx, iterIdx, loopVar, elseBody);
-        } else if (_nt(iterIdx) == NodeType.LIST_LITERAL) {
-            _genForList(nodeIdx, iterIdx, loopVar, elseBody);
+        // Tuple target: for i, x in enumerate(lst) or zip(lst1, lst2)
+        if (_nt(varIdx) == NodeType.TUPLE_LITERAL && _nt(iterIdx) == NodeType.FUNC_CALL) {
+            string memory iterName = _sv(iterIdx);
+            if (keccak256(bytes(iterName)) == keccak256("enumerate")) {
+                _genForEnumerate(nodeIdx, iterIdx, varIdx, elseBody);
+            } else if (keccak256(bytes(iterName)) == keccak256("zip")) {
+                _genForZip(nodeIdx, iterIdx, varIdx, elseBody);
+            }
         } else {
-            // General iterable (variable) — iterate using index
-            _genForIterable(nodeIdx, iterIdx, loopVar, elseBody);
+            string memory loopVar = _sv(varIdx);
+            if (_nt(iterIdx) == NodeType.FUNC_CALL && keccak256(bytes(_sv(iterIdx))) == keccak256("range")) {
+                _genForRange(nodeIdx, iterIdx, loopVar, elseBody);
+            } else if (_nt(iterIdx) == NodeType.LIST_LITERAL) {
+                _genForList(nodeIdx, iterIdx, loopVar, elseBody);
+            } else {
+                // General iterable (variable) — iterate using index
+                _genForIterable(nodeIdx, iterIdx, loopVar, elseBody);
+            }
         }
 
         // Pop loop context (break/continue patches already backpatched inside the helpers)
@@ -699,6 +708,148 @@ contract CodeGenerator {
         if (elseBody != 0) _genBlock(elseBody);
 
         // Backpatch break jumps (land after else block)
+        uint256 breakStart = _breakContextStart[_breakContextStart.length - 1];
+        _backpatchBreaks(breakStart);
+    }
+
+    function _genForEnumerate(uint256 nodeIdx, uint256 iterIdx, uint256 tupleIdx, uint256 elseBody) internal {
+        // for i, x in enumerate(lst) → i=index, x=lst[index]
+        // iterIdx = enumerate(lst) FUNC_CALL, tupleIdx = (i, x) TUPLE_LITERAL
+        uint256 lstArg = _ea(_ai(iterIdx)); // first arg to enumerate
+
+        string memory iName = string.concat("__ei", _toString(_forTempCounter));
+        string memory lstName = string.concat("__el", _toString(_forTempCounter));
+        _forTempCounter++;
+
+        // Store list
+        _genExpr(lstArg);
+        _genStoreVarByName(lstName);
+
+        // Init counter
+        _genPush(0);
+        _genStoreVarByName(iName);
+
+        // Get tuple target names
+        uint256 tupleStart = _ai(tupleIdx);
+        uint256 tupleCount = _ac(tupleIdx);
+        string memory idxVar = _sv(_ea(tupleStart)); // first target = index
+        string memory elemVar = tupleCount > 1 ? _sv(_ea(tupleStart + 1)) : idxVar; // second target = element
+
+        // Loop condition: __ei < len(__el)
+        uint256 loopStart = code.length - HEADER_SIZE;
+        _genLoadVarByName(iName);
+        _genLoadVarByName(lstName);
+        _emitOp(OP_LIST_LEN);
+        _emitOp(OP_LT);
+        _emitOp(OP_JUMP_IF_FALSE);
+        _emitUint32(0);
+        uint256 exitJumpOffset = code.length - 4;
+
+        // i = __ei
+        _genLoadVarByName(iName);
+        _genStoreVarByName(idxVar);
+
+        // x = __el[__ei]
+        _genLoadVarByName(lstName);
+        _genLoadVarByName(iName);
+        _emitOp(OP_LIST_GET);
+        _genStoreVarByName(elemVar);
+
+        // Body
+        if (_c3(nodeIdx) != 0) _genBlock(_c3(nodeIdx));
+
+        // Continue backpatch
+        uint256 incTarget = code.length - HEADER_SIZE;
+        uint256 continueStart = _continueContextStart[_continueContextStart.length - 1];
+        _backpatchContinues(continueStart, incTarget);
+
+        // __ei += 1
+        _genLoadVarByName(iName);
+        _genPush(1);
+        _emitOp(OP_ADD);
+        _genStoreVarByName(iName);
+
+        // Jump back
+        _emitOp(OP_JUMP_BACK);
+        _emitUint32(loopStart);
+
+        // Exit
+        _patchUint32(exitJumpOffset, code.length - exitJumpOffset - 4);
+        if (elseBody != 0) _genBlock(elseBody);
+        uint256 breakStart = _breakContextStart[_breakContextStart.length - 1];
+        _backpatchBreaks(breakStart);
+    }
+
+    function _genForZip(uint256 nodeIdx, uint256 iterIdx, uint256 tupleIdx, uint256 elseBody) internal {
+        // for a, b in zip(lst1, lst2) → a=lst1[i], b=lst2[i]
+        uint256 argStart = _ai(iterIdx);
+        uint256 argCount = _ac(iterIdx);
+
+        string memory iName = string.concat("__ei", _toString(_forTempCounter));
+        _forTempCounter++;
+
+        // Store each list and get target names
+        string[] memory lstNames = new string[](argCount);
+        for (uint256 i = 0; i < argCount; i++) {
+            lstNames[i] = string.concat("__ez", _toString(_forTempCounter), "_", _toString(i));
+            _genExpr(_ea(argStart + i));
+            _genStoreVarByName(lstNames[i]);
+        }
+
+        // Init counter
+        _genPush(0);
+        _genStoreVarByName(iName);
+
+        // Get tuple target names
+        uint256 tupleStart = _ai(tupleIdx);
+        uint256 tupleCount = _ac(tupleIdx);
+
+        // Loop condition: __ei < min(len(lst_names))
+        uint256 loopStart = code.length - HEADER_SIZE;
+        _genLoadVarByName(iName);
+        _genLoadVarByName(lstNames[0]);
+        _emitOp(OP_LIST_LEN);
+        _emitOp(OP_LT);
+        for (uint256 i = 1; i < argCount; i++) {
+            _genLoadVarByName(iName);
+            _genLoadVarByName(lstNames[i]);
+            _emitOp(OP_LIST_LEN);
+            _emitOp(OP_LT);
+            _emitOp(OP_AND);
+        }
+        _emitOp(OP_JUMP_IF_FALSE);
+        _emitUint32(0);
+        uint256 exitJumpOffset = code.length - 4;
+
+        // Unpack: target[i] = lst[i][__ei]
+        for (uint256 i = 0; i < tupleCount && i < argCount; i++) {
+            _genLoadVarByName(lstNames[i]);
+            _genLoadVarByName(iName);
+            _emitOp(OP_LIST_GET);
+            _genStoreVarByName(_sv(_ea(tupleStart + i)));
+        }
+
+        // Body
+        if (_c3(nodeIdx) != 0) _genBlock(_c3(nodeIdx));
+
+        // Continue backpatch
+        uint256 incTarget = code.length - HEADER_SIZE;
+        uint256 continueStart = _continueContextStart[_continueContextStart.length - 1];
+        _backpatchContinues(continueStart, incTarget);
+
+        // __ei += 1
+        _genLoadVarByName(iName);
+        _genPush(1);
+        _emitOp(OP_ADD);
+        _genStoreVarByName(iName);
+
+        // Jump back
+        _emitOp(OP_JUMP_BACK);
+        _emitUint32(loopStart);
+
+        // Exit
+        _patchUint32(exitJumpOffset, code.length - exitJumpOffset - 4);
+        if (elseBody != 0) _genBlock(elseBody);
         uint256 breakStart = _breakContextStart[_breakContextStart.length - 1];
         _backpatchBreaks(breakStart);
     }

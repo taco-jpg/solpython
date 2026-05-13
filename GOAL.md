@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-FEAT-9: Enumerate and Zip builtins
+FEAT-10: Isinstance and Type builtins
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -41,6 +41,7 @@ FEAT-9: Enumerate and Zip builtins
 - [x] Ternary Expression (7 tests, a if cond else b, nested, in expressions)
 - [x] Chained Comparison (8 tests, a < b < c, 4 operands, mixed ops)
 - [x] For...Else and While...Else (7 tests, else executes on normal exit, skipped by break)
+- [x] Enumerate and Zip builtins (7 tests, tuple for-loop targets, enumerate/zip desugaring)
 
 ## IN_PROGRESS
 (None — all features complete)
@@ -52,7 +53,7 @@ FEAT-9: Enumerate and Zip builtins
 (None yet)
 
 ## TEST_COUNT
-508 passing / 508 total
+515 passing / 515 total
 
 ## PHASE DETAILS
 
