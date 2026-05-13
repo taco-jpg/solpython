@@ -31,3 +31,7 @@ uint256 constant FLOAT_SCALE = 1_000_000;
 uint256 constant FLOAT_TAG = 5;
 uint256 constant FLOAT_TAG_SHIFT = 252;
 uint256 constant FLOAT_VALUE_MASK = (1 << 252) - 1;
+
+// None sentinel: tag 6 at bits 252-255
+uint256 constant NONE_TAG = 6;
+uint256 constant NONE_VALUE = (NONE_TAG << FLOAT_TAG_SHIFT);

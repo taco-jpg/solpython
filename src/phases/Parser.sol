@@ -638,9 +638,11 @@ contract Parser {
     function _isCmp(TokenType t) internal view returns (bool) {
         if (t == TokenType.OP_EQ || t == TokenType.OP_NEQ || t == TokenType.OP_LT ||
             t == TokenType.OP_GT || t == TokenType.OP_LTE || t == TokenType.OP_GTE ||
-            t == TokenType.KW_IN) return true;
+            t == TokenType.KW_IN || t == TokenType.KW_IS) return true;
         // Check for "not in" (KW_NOT followed by KW_IN)
         if (t == TokenType.KW_NOT && _peek() == TokenType.KW_IN) return true;
+        // Check for "is not" (KW_IS followed by KW_NOT)
+        if (t == TokenType.KW_IS && _peek() == TokenType.KW_NOT) return true;
         return false;
     }
 
@@ -652,6 +654,13 @@ contract Parser {
         if (t == TokenType.OP_LTE) return CompOpType.LTE;
         if (t == TokenType.OP_GTE) return CompOpType.GTE;
         if (t == TokenType.KW_IN) return CompOpType.IN;
+        if (t == TokenType.KW_IS) {
+            if (_peek() == TokenType.KW_NOT) {
+                _adv(); // consume "is"
+                return CompOpType.NEQ; // "is not" → NEQ
+            }
+            return CompOpType.EQ; // "is" → EQ (identity ≈ equality for our purposes)
+        }
         // "not in" — consume both tokens
         _adv(); // consume "not"
         return CompOpType.NOT_IN;

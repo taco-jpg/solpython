@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {NodeType, BinaryOpType, UnaryOpType, CompOpType, AugAssignOp} from "../types/ASTNode.sol";
-import {FLOAT_TAG, FLOAT_TAG_SHIFT} from "../types/TypeInfo.sol";
+import {FLOAT_TAG, FLOAT_TAG_SHIFT, NONE_VALUE} from "../types/TypeInfo.sol";
 import {Parser} from "./Parser.sol";
 
 contract CodeGenerator {
@@ -1875,7 +1875,7 @@ contract CodeGenerator {
     }
 
     function _genPushNone() internal {
-        _genPush(type(uint256).max);
+        _genPush(NONE_VALUE);
     }
 
     function _genPushFloat(uint256 scaledValue) internal {

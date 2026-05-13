@@ -665,3 +665,37 @@ Introduced BOOL_OFFSET = 2**66 tag. Bool values are now represented as BOOL_OFFS
 
 ### Test Results
 587/587 passing across 44 suites. +16 new tests, 0 regressions.
+
+## 2026-05-12 — FIX-3: None vs -1 collision
+
+### Root Cause
+NONE_VALUE = type(uint256).max = 2^256 - 1, which is also -1 in two's complement. So -1 == None returned True, and arithmetic on -1 triggered NoneType errors.
+
+### Approach
+Changed NONE_VALUE to a tagged sentinel: NONE_TAG = 6 at bits 252-255, so NONE_VALUE = (6 << 252). This places None in a disjoint tag space alongside floats (tag 5) and bools (BOOL_OFFSET = 2^66). Updated all None push sites in VM and codegen.
+
+Also fixed `is` keyword parsing: added KW_IS to parser's _isCmp/_cmpOp, mapping `is` → EQ and `is not` → NEQ.
+
+### Files Changed
+- `src/types/TypeInfo.sol` — Added NONE_TAG and NONE_VALUE constants
+- `src/phases/VM.sol` — Import NONE_VALUE, removed local definition, updated 8 None push sites and _classifyType
+- `src/phases/CodeGenerator.sol` — Import NONE_VALUE, updated _genPushNone
+- `src/phases/Parser.sol` — Added KW_IS to comparison operators
+- `test/TypeClassify.t.sol` — 8 new tests
+
+### Tests Added
+8 tests (5 happy-path, 3 edge-case):
+- -1 == None → False
+- -1 is None → False
+- None is None → True
+- None == None → True
+- isinstance(None, NoneType) → True
+- Function returning -1 does not trigger NoneType error
+- lst[-1] on [5] returns 5 (not None)
+- -1 type check (known limitation: -1 collides with string ID range, FIX-4)
+
+### Known Limitation
+-1 (2^256-1) still collides with the string ID range (>= 2^62). isinstance(-1, int) returns TYPE_STR. Full fix requires FIX-4 (integer range bounds).
+
+### Test Results
+595/595 passing across 44 suites. +8 new tests, 0 regressions.

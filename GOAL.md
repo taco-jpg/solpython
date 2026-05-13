@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-FIX-3: None vs -1 collision
+FIX-4: Integer range / string ID collision
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -60,7 +60,7 @@ FIX-3: None vs -1 collision
 (None yet)
 
 ## TEST_COUNT
-587 passing / 587 total
+595 passing / 595 total
 
 ## PHASE DETAILS
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {FLOAT_SCALE, FLOAT_TAG, FLOAT_TAG_SHIFT, FLOAT_VALUE_MASK} from "../types/TypeInfo.sol";
+import {FLOAT_SCALE, FLOAT_TAG, FLOAT_TAG_SHIFT, FLOAT_VALUE_MASK, NONE_VALUE} from "../types/TypeInfo.sol";
 
 contract VM {
     // Stack
@@ -740,7 +740,7 @@ contract VM {
             if (rawIdx > type(uint256).max / 2) {
                 int256 actualIdx = int256(len) + int256(rawIdx);
                 if (actualIdx < 0) {
-                    stack.push(type(uint256).max); // NONE
+                    stack.push(NONE_VALUE);
                     return;
                 }
                 idx = uint256(actualIdx);
@@ -748,7 +748,7 @@ contract VM {
                 idx = rawIdx;
             }
             if (idx >= len) {
-                stack.push(type(uint256).max); // NONE
+                stack.push(NONE_VALUE);
                 return;
             }
             bytes memory char = new bytes(1);
@@ -788,7 +788,7 @@ contract VM {
             if (dictHasKey[id][rawIdx]) {
                 stack.push(dictValues[id][rawIdx]);
             } else {
-                stack.push(type(uint256).max); // NONE
+                stack.push(NONE_VALUE);
             }
             return;
         }
@@ -995,7 +995,7 @@ contract VM {
         if (dictHasKey[dictId][key]) {
             stack.push(dictValues[dictId][key]);
         } else {
-            stack.push(type(uint256).max); // NONE
+            stack.push(NONE_VALUE);
         }
     }
 
@@ -1088,7 +1088,7 @@ contract VM {
             }
             dictValues[dictId][key] = val;
         }
-        stack.push(type(uint256).max); // return None
+        stack.push(NONE_VALUE);
     }
 
     // ==================== Sets ====================
@@ -1304,7 +1304,7 @@ contract VM {
         if (rawIdx > type(uint256).max / 2) {
             int256 actualIdx = int256(len) + int256(rawIdx);
             if (actualIdx < 0) {
-                stack.push(type(uint256).max); // NONE
+                stack.push(NONE_VALUE);
                 return;
             }
             idx = uint256(actualIdx);
@@ -1312,7 +1312,7 @@ contract VM {
             idx = rawIdx;
         }
         if (idx >= len) {
-            stack.push(type(uint256).max); // NONE
+            stack.push(NONE_VALUE);
             return;
         }
         bytes memory char = new bytes(1);
@@ -1470,7 +1470,7 @@ contract VM {
 
     // ==================== Helpers ====================
 
-    uint256 constant NONE_VALUE = type(uint256).max;
+    // NONE_VALUE imported from TypeInfo.sol
 
     function _isNone(uint256 v) internal pure returns (bool) {
         return v == NONE_VALUE;
@@ -1725,7 +1725,7 @@ contract VM {
             return;
         }
 
-        stack.push(type(uint256).max); // NONE
+        stack.push(NONE_VALUE);
     }
 
     function _execStoreAttr() internal {
@@ -1786,7 +1786,7 @@ contract VM {
     // ==================== Type Introspection ====================
 
     function _classifyType(uint256 val) internal view returns (uint256) {
-        if (val == type(uint256).max) return TYPE_NONE;
+        if (val == NONE_VALUE) return TYPE_NONE;
         // Tagged bools: BOOL_OFFSET + 0 (False) or BOOL_OFFSET + 1 (True)
         if (_isBoolTagged(val)) return TYPE_BOOL;
         // Check high-ID types first (no overlap with ints)

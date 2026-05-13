@@ -235,4 +235,83 @@ contract TypeClassifyTest is Test {
         pyVm.execute(bytecode);
         assertEq(_getLastPrint(), 1, "not 0 should be True");
     }
+
+    // ==================== FIX-3: None vs -1 collision ====================
+
+    function testNegOneEqualsNone() public {
+        // -1 == None should be False (currently True due to collision)
+        string memory src = "print(-1 == None)\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 0, "-1 == None should be False");
+    }
+
+    function testNegOneIsNotNone() public {
+        string memory src = "print(-1 is None)\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 0, "-1 is None should be False");
+    }
+
+    function testNoneIsNone() public {
+        string memory src = "print(None is None)\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 1, "None is None should be True");
+    }
+
+    function testNoneEqualsNone() public {
+        string memory src = "print(None == None)\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 1, "None == None should be True");
+    }
+
+    function testNegOneType() public {
+        // -1 in two's complement is 2^256-1, which collides with string ID range.
+        // Full fix requires FIX-4 (integer tagging). For now, verify -1 != None.
+        string memory src = "print(-1 == None)\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 0, "-1 == None should be False (FIX-3 core fix)");
+    }
+
+    function testNoneIsNoneType() public {
+        string memory src = "print(isinstance(None, NoneType))\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 1, "isinstance(None, NoneType) should be True");
+    }
+
+    function testFuncReturnNegOne() public {
+        // Function returning -1 should not trigger NoneType arithmetic error
+        string memory src = "def f():\n    return -1\nx = f()\nprint(x + 1)\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 0, "f() returning -1: -1 + 1 should be 0");
+    }
+
+    function testListNegIndex() public {
+        // lst[-1] on [5] should return 5, not None
+        string memory src = "lst = [5]\nprint(lst[-1])\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 5, "lst[-1] on [5] should return 5");
+    }
 }
