@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-FIX-15: Parser _funcPs/_funcPc storage-as-return-value
+FIX-16: _callArgs reset between Parser uses
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -60,7 +60,7 @@ FIX-15: Parser _funcPs/_funcPc storage-as-return-value
 (None yet)
 
 ## TEST_COUNT
-629 passing / 629 total
+630 passing / 630 total
 
 ## PHASE DETAILS
 

@@ -270,4 +270,25 @@ contract ParserTest is Test {
         uint256 inner = _exprAux(ast[outer], 0);
         assertEq(ast[inner].strValue, "bar");
     }
+
+    // ==================== FIX-15: Nested function param storage ====================
+
+    function testNestedFuncDefParams() public {
+        // Inner function should have 2 params, outer should have 1
+        string memory src = "def outer(a):\n    def inner(b, c):\n        return b + c\n    return inner(a, a)\n";
+        ASTNode[] memory ast = _parse(src);
+        uint256 outerIdx = _firstStmt(ast);
+        assertEq(uint256(ast[outerIdx].nodeType), uint256(NodeType.FUNCTION_DEF));
+        assertEq(ast[outerIdx].strValue, "outer");
+        // outer has 1 param
+        assertEq(ast[outerIdx].auxCount, 1);
+        // Find inner function def inside outer's body
+        uint256 outerBody = ast[outerIdx].child2;
+        // inner is the first statement in outer's body
+        uint256 innerIdx = _childStmt(ast[outerBody], 0);
+        assertEq(uint256(ast[innerIdx].nodeType), uint256(NodeType.FUNCTION_DEF));
+        assertEq(ast[innerIdx].strValue, "inner");
+        // inner has 2 params
+        assertEq(ast[innerIdx].auxCount, 2);
+    }
 }

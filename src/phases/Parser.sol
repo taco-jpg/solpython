@@ -109,7 +109,7 @@ contract Parser {
         string memory name = _lex();
         _adv();
         _exp(TokenType.LPAREN);
-        _parseFuncParams(name);
+        (uint256 funcPs, uint256 funcPc) = _parseFuncParams(name);
         _exp(TokenType.RPAREN);
         _skipNL();
         _exp(TokenType.COLON);
@@ -117,14 +117,11 @@ contract Parser {
         uint256 lvl = _bodyPush();
         uint256 body = _suite();
         _bodyPopTo(lvl, body);
-        return _emit(NodeType.FUNCTION_DEF, 0, body, 0, _funcPs, _funcPc, _funcDefaultCount[name], name, ln, col);
+        return _emit(NodeType.FUNCTION_DEF, 0, body, 0, funcPs, funcPc, _funcDefaultCount[name], name, ln, col);
     }
 
-    uint256 private _funcPs;
-    uint256 private _funcPc;
-
-    function _parseFuncParams(string memory name) internal {
-        uint256 pc = 0;
+    function _parseFuncParams(string memory name) internal returns (uint256 ps, uint256 pc) {
+        pc = 0;
         uint256 defaultCnt = 0;
         while (_cur() != TokenType.RPAREN && !_end()) {
             string memory param = _lex();
@@ -138,11 +135,10 @@ contract Parser {
             }
             if (_cur() == TokenType.COMMA) _adv();
         }
-        _funcPs = exprAux.length - pc;
-        _funcPc = pc;
+        ps = exprAux.length - pc;
         _funcDefaultCount[name] = defaultCnt;
         _funcParamCount[name] = pc;
-        _funcParamStart[name] = _funcPs;
+        _funcParamStart[name] = ps;
     }
 
     function _ifStmt() internal returns (uint256) {
