@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "solpython"
+version = "0.1.0"
+description = "Python-to-EVM compiler — run Python on-chain via a Solidity smart contract pipeline"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+dependencies = [
+    "web3>=6.0",
+    "eth-tester>=0.10.0",
+    "py-evm>=0.10.0",
+]
+
+[project.optional-dependencies]
+build = ["py-solc-x>=2.0"]
+
+[project.scripts]
+solpython = "pysol.cli.main:main"
+pysol-compile = "pysol.build:build"
+
+[tool.setuptools.packages.find]
+include = ["pysol*"]
+
+[tool.setuptools.package-data]
+pysol = ["contracts/artifacts/*.json"]

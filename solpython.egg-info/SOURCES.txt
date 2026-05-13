@@ -1,0 +1,17 @@
+MANIFEST.in
+README.md
+pyproject.toml
+pysol/__init__.py
+pysol/build.py
+pysol/executor.py
+pysol/cli/__init__.py
+pysol/cli/main.py
+pysol/contracts/__init__.py
+pysol/contracts/artifacts/PythonCompiler.json
+pysol/contracts/artifacts/VM.json
+solpython.egg-info/PKG-INFO
+solpython.egg-info/SOURCES.txt
+solpython.egg-info/dependency_links.txt
+solpython.egg-info/entry_points.txt
+solpython.egg-info/requires.txt
+solpython.egg-info/top_level.txt
