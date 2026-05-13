@@ -1,3 +1,0 @@
-[console_scripts]
-pysol-compile = pysol.build:build
-solpython = pysol.cli.main:main
