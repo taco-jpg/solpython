@@ -699,3 +699,30 @@ Also fixed `is` keyword parsing: added KW_IS to parser's _isCmp/_cmpOp, mapping 
 
 ### Test Results
 595/595 passing across 44 suites. +8 new tests, 0 regressions.
+
+## 2026-05-12 — FIX-4: Integer range / string ID collision
+
+### Root Cause
+Integers ≥ 2^62 collided with the static string ID range (STATIC_STR_OFFSET = 2^62). Large positive integers were misclassified as strings by _isStringId.
+
+### Approach
+Added INT_MAX = 2^62 - 1 and INT_MIN = -(2^62) bounds. Added `_checkIntOverflow` helper that emits VMError for values between INT_MAX and INT_MIN (exclusive of negative range). Applied overflow checks to ADD, SUB, MUL, POW arithmetic operations. Negative numbers (two's complement) remain valid since they're above INT_MIN in uint256.
+
+### Files Changed
+- `src/phases/VM.sol` — INT_MAX/INT_MIN constants, _checkIntOverflow helper, overflow checks in _execAdd/_execSub/_execMul/_execPow
+- `test/TypeClassify.t.sol` — 6 new tests
+
+### Tests Added
+6 tests (4 happy-path, 2 edge-case):
+- 2**61 works correctly
+- 2**62 raises VMError (overflow)
+- 2**61 * 2 raises VMError (overflow)
+- Large int (10^18) works correctly
+- Negative int arithmetic works
+- type(42) == TYPE_INT
+
+### Known Limitation
+Overflow detection only applies to arithmetic results, not to integer literals pushed directly via PUSH. Full fix requires integer tagging (FIX-FOLLOW-UP).
+
+### Test Results
+601/601 passing across 44 suites. +6 new tests, 0 regressions.

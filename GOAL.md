@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-FIX-4: Integer range / string ID collision
+FIX-5: Float tag false positives on extreme values
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -60,7 +60,7 @@ FIX-4: Integer range / string ID collision
 (None yet)
 
 ## TEST_COUNT
-595 passing / 595 total
+601 passing / 601 total
 
 ## PHASE DETAILS
 

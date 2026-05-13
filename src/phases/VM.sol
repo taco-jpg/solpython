@@ -190,6 +190,10 @@ contract VM {
     // Bool tagging: True = BOOL_OFFSET + 1, False = BOOL_OFFSET
     uint256 constant BOOL_OFFSET = 2**66;
 
+    // Integer range: 62-bit signed, avoids collision with list/dict/set/string IDs
+    uint256 constant INT_MAX = 2**62 - 1;
+    uint256 constant INT_MIN = type(uint256).max - (2**62) + 1; // -2^62 in two's complement
+
     uint8 constant OP_HALT = 0xFF;
 
     // ==================== Entry Point ====================
@@ -394,6 +398,16 @@ contract VM {
         return true;
     }
 
+    function _checkIntOverflow(uint256 val) internal returns (bool) {
+        // Allow negative numbers (two's complement: val >= INT_MIN in uint256 = val >= 2^256 - 2^62)
+        if (val > INT_MAX && val < INT_MIN) {
+            emit VMError("Integer overflow", pc - 1);
+            pc = code.length;
+            return true;
+        }
+        return false;
+    }
+
     function _execAdd() internal {
         uint256 a = _pop();
         uint256 b = _pop();
@@ -416,7 +430,11 @@ contract VM {
             uint256 bScaled = _isFloat(b) ? _floatExtract(b) : b * FLOAT_SCALE;
             stack.push(_floatEncode(bScaled + aScaled));
         } else {
-            unchecked { stack.push(b + a); }
+            unchecked {
+                uint256 r = b + a;
+                if (_checkIntOverflow(r)) return;
+                stack.push(r);
+            }
         }
     }
 
@@ -431,7 +449,11 @@ contract VM {
             uint256 bScaled = _isFloat(b) ? _floatExtract(b) : b * FLOAT_SCALE;
             stack.push(_floatEncode(bScaled - aScaled));
         } else {
-            unchecked { stack.push(b - a); }
+            unchecked {
+                uint256 r = b - a;
+                if (_checkIntOverflow(r)) return;
+                stack.push(r);
+            }
         }
     }
 
@@ -448,6 +470,7 @@ contract VM {
         } else {
             unchecked {
                 uint256 result = b * a;
+                if (_checkIntOverflow(result)) return;
                 emit Trace(pc - 1, 0x12, result);
                 stack.push(result);
             }
@@ -494,7 +517,9 @@ contract VM {
         if (_checkNoneArith(a, b)) return;
         a = _untagBool(a);
         b = _untagBool(b);
-        stack.push(_pow(b, a));
+        uint256 result = _pow(b, a);
+        if (_checkIntOverflow(result)) return;
+        stack.push(result);
     }
 
     function _execNeg() internal {

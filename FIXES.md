@@ -1,19 +1,21 @@
 # FIXES.md — Critical Fix Queue
 
 ## CURRENT_FIX
-FIX-4: Integer range / string ID collision
-  Sub-step: Write failing tests
+FIX-5: Float tag false positives on extreme values
+  Sub-step: Review tag space partitioning
 
 ## COMPLETED
 - [x] FIX-1: _classifyType empty-list misclassification (commit 6a47a93, +5 tests)
 - [x] FIX-2: _classifyType returns TYPE_BOOL for 0 and 1 (commit b104a09, +16 tests)
-- [x] FIX-3: None vs -1 collision (commit pending, +8 tests)
+- [x] FIX-3: None vs -1 collision (commit 147ca96, +8 tests)
+- [x] FIX-4: Integer range / string ID collision (commit pending, +6 tests)
 
 ## QUEUE (in priority order — DO NOT REORDER)
 - [x] FIX-1: _classifyType empty-list misclassification
 - [x] FIX-2: _classifyType returns TYPE_BOOL for 0 and 1
 - [x] FIX-3: None vs -1 collision
-- [ ] FIX-4: Integer range / string ID collision
+- [x] FIX-4: Integer range / string ID collision
+- [ ] FIX-5: Float tag false positives on extreme values
 - [ ] FIX-3: None vs -1 collision
 - [ ] FIX-4: Integer range / string ID collision
 - [ ] FIX-5: Float tag false positives on extreme values
@@ -38,4 +40,4 @@ FIX-4: Integer range / string ID collision
 (things noticed but out of scope for current fix)
 
 ## TEST_COUNT
-595 passing / 595 total
+601 passing / 601 total

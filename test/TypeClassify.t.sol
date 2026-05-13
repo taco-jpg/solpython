@@ -314,4 +314,85 @@ contract TypeClassifyTest is Test {
         pyVm.execute(bytecode);
         assertEq(_getLastPrint(), 5, "lst[-1] on [5] should return 5");
     }
+
+    // ==================== FIX-4: Integer overflow detection ====================
+
+    function testIntMaxWorks() public {
+        // 2**61 should work (within INT_MAX = 2**62 - 1)
+        string memory src = "x = 2**61\nprint(x)\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 2**61, "2**61 should work");
+    }
+
+    function testIntOverflowPow() public {
+        // 2**62 should overflow (exceeds INT_MAX)
+        string memory src = "x = 2**62\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        // Should halt with VMError, no print
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        bytes32 errorTopic = keccak256("VMError(string,uint256)");
+        bool foundError = false;
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].topics[0] == errorTopic) {
+                foundError = true;
+                break;
+            }
+        }
+        assertTrue(foundError, "2**62 should emit VMError");
+    }
+
+    function testIntOverflowMul() public {
+        // 2**61 * 2 should overflow
+        string memory src = "x = 2**61 * 2\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        bytes32 errorTopic = keccak256("VMError(string,uint256)");
+        bool foundError = false;
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].topics[0] == errorTopic) {
+                foundError = true;
+                break;
+            }
+        }
+        assertTrue(foundError, "2**61 * 2 should emit VMError");
+    }
+
+    function testLargeIntWorks() public {
+        // Large int within range should work
+        string memory src = "x = 1000000000000000000\nprint(x)\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 1000000000000000000, "Large int should work");
+    }
+
+    function testNegIntWorks() public {
+        // Negative numbers should still work
+        string memory src = "x = -100\nprint(x + 200)\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 100, "-100 + 200 should be 100");
+    }
+
+    function testIntTypeClassification() public {
+        // type(42) should be TYPE_INT, not TYPE_STR
+        string memory src = "print(type(42))\n";
+        bytes memory bytecode = _compile(src);
+        VM pyVm = new VM();
+        vm.recordLogs();
+        pyVm.execute(bytecode);
+        assertEq(_getLastPrint(), 0, "type(42) should be TYPE_INT");
+    }
 }
