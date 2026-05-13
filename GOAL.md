@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-FEAT-13: Dict Methods (items/values/get/update)
+FEAT-14: Sorted and Reversed
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -45,18 +45,19 @@ FEAT-13: Dict Methods (items/values/get/update)
 - [x] Isinstance and Type builtins (9 tests, isinstance/typeof opcodes, type classification)
 - [x] Map and Filter builtins (8 tests, OP_LIST_APPEND, desugared for-loop, list building)
 - [x] String Formatting (8 tests, f-strings with {var}, %s/%d formatting, OP_STR_CONCAT)
+- [x] Dict Methods (7 tests, items/values/get/update opcodes, GC-registered)
 
 ## IN_PROGRESS
-FEAT-13: Dict Methods (items/values/get/update)
+FEAT-14: Sorted and Reversed
 
 ## NEXT_UP
-FEAT-14: Sorted and Reversed
+FEAT-15: VFS Directory Structure
 
 ## BLOCKERS
 (None yet)
 
 ## TEST_COUNT
-540 passing / 540 total
+547 passing / 547 total
 
 ## PHASE DETAILS
 

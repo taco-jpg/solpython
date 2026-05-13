@@ -112,6 +112,10 @@ contract CodeGenerator {
     uint8 constant OP_SET_ADD = 0x97;
     uint8 constant OP_SET_HAS = 0x98;
     uint8 constant OP_SET_LEN = 0x99;
+    uint8 constant OP_DICT_VALUES = 0x9A;
+    uint8 constant OP_DICT_ITEMS = 0x9B;
+    uint8 constant OP_DICT_GET_DEFAULT = 0x9C;
+    uint8 constant OP_DICT_UPDATE = 0x9D;
 
     uint8 constant OP_STR_LEN = 0xA0;
     uint8 constant OP_STR_CONCAT = 0xA1;
@@ -1273,6 +1277,24 @@ contract CodeGenerator {
                 _genExpr(_c1(nodeIdx));
                 _genExpr(_ea(_ai(nodeIdx)));
                 _emitOp(OP_STR_CHAR_AT);
+            } else if (methodHash == bytes4(keccak256("keys")) && mcArgCount == 0) {
+                _genExpr(_c1(nodeIdx));
+                _emitOp(OP_DICT_KEYS);
+            } else if (methodHash == bytes4(keccak256("values")) && mcArgCount == 0) {
+                _genExpr(_c1(nodeIdx));
+                _emitOp(OP_DICT_VALUES);
+            } else if (methodHash == bytes4(keccak256("items")) && mcArgCount == 0) {
+                _genExpr(_c1(nodeIdx));
+                _emitOp(OP_DICT_ITEMS);
+            } else if (methodHash == bytes4(keccak256("get")) && mcArgCount == 2) {
+                _genExpr(_c1(nodeIdx));
+                _genExpr(_ea(_ai(nodeIdx)));
+                _genExpr(_ea(_ai(nodeIdx) + 1));
+                _emitOp(OP_DICT_GET_DEFAULT);
+            } else if (methodHash == bytes4(keccak256("update")) && mcArgCount == 1) {
+                _genExpr(_c1(nodeIdx));
+                _genExpr(_ea(_ai(nodeIdx)));
+                _emitOp(OP_DICT_UPDATE);
             } else {
                 // Object method call
                 _genExpr(_c1(nodeIdx)); // push object

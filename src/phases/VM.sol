@@ -133,6 +133,10 @@ contract VM {
     uint8 constant OP_SET_ADD = 0x97;
     uint8 constant OP_SET_HAS = 0x98;
     uint8 constant OP_SET_LEN = 0x99;
+    uint8 constant OP_DICT_VALUES = 0x9A;
+    uint8 constant OP_DICT_ITEMS = 0x9B;
+    uint8 constant OP_DICT_GET_DEFAULT = 0x9C;
+    uint8 constant OP_DICT_UPDATE = 0x9D;
 
     uint8 constant OP_STR_LEN = 0xA0;
     uint8 constant OP_STR_CONCAT = 0xA1;
@@ -244,6 +248,10 @@ contract VM {
             else if (op == OP_DICT_HAS) _execDictHas();
             else if (op == OP_DICT_KEYS) _execDictKeys();
             else if (op == OP_DICT_LEN) _execDictLen();
+            else if (op == OP_DICT_VALUES) _execDictValues();
+            else if (op == OP_DICT_ITEMS) _execDictItems();
+            else if (op == OP_DICT_GET_DEFAULT) _execDictGetDefault();
+            else if (op == OP_DICT_UPDATE) _execDictUpdate();
             else if (op == OP_MAKE_SET) _execMakeSet();
             else if (op == OP_SET_ADD) _execSetAdd();
             else if (op == OP_SET_HAS) _execSetHas();
@@ -977,6 +985,63 @@ contract VM {
     function _execDictLen() internal {
         uint256 dictId = _pop();
         stack.push(dictKeyList[dictId].length);
+    }
+
+    function _execDictValues() internal {
+        uint256 dictId = _pop();
+        uint256 listId = nextListId++;
+        _gcRegister(listId);
+        uint256 len = dictKeyList[dictId].length;
+        for (uint256 i = 0; i < len; i++) {
+            lists[listId].push(dictValues[dictId][dictKeyList[dictId][i]]);
+        }
+        stack.push(listId);
+    }
+
+    function _execDictItems() internal {
+        uint256 dictId = _pop();
+        uint256 listId = nextListId++;
+        _gcRegister(listId);
+        uint256 len = dictKeyList[dictId].length;
+        for (uint256 i = 0; i < len; i++) {
+            uint256 key = dictKeyList[dictId][i];
+            uint256 val = dictValues[dictId][key];
+            // Create tuple (key, value)
+            uint256 tupleId = TUPLE_ID_OFFSET + nextTupleId++;
+            tuples[tupleId].push(key);
+            tuples[tupleId].push(val);
+            tupleLen[tupleId] = 2;
+            _gcRegister(tupleId);
+            lists[listId].push(tupleId);
+        }
+        stack.push(listId);
+    }
+
+    function _execDictGetDefault() internal {
+        uint256 defaultVal = _pop();
+        uint256 key = _pop();
+        uint256 dictId = _pop();
+        if (dictHasKey[dictId][key]) {
+            stack.push(dictValues[dictId][key]);
+        } else {
+            stack.push(defaultVal);
+        }
+    }
+
+    function _execDictUpdate() internal {
+        uint256 otherDictId = _pop();
+        uint256 dictId = _pop();
+        uint256 len = dictKeyList[otherDictId].length;
+        for (uint256 i = 0; i < len; i++) {
+            uint256 key = dictKeyList[otherDictId][i];
+            uint256 val = dictValues[otherDictId][key];
+            if (!dictHasKey[dictId][key]) {
+                dictKeyList[dictId].push(key);
+                dictHasKey[dictId][key] = true;
+            }
+            dictValues[dictId][key] = val;
+        }
+        stack.push(type(uint256).max); // return None
     }
 
     // ==================== Sets ====================
