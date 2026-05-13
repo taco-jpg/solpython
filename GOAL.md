@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-FEAT-14: Sorted and Reversed
+FEAT-15: VFS Directory Structure
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -46,18 +46,19 @@ FEAT-14: Sorted and Reversed
 - [x] Map and Filter builtins (8 tests, OP_LIST_APPEND, desugared for-loop, list building)
 - [x] String Formatting (8 tests, f-strings with {var}, %s/%d formatting, OP_STR_CONCAT)
 - [x] Dict Methods (7 tests, items/values/get/update opcodes, GC-registered)
+- [x] Sorted and Reversed (7 tests, OP_SORTED/OP_REVERSED, bubble sort, new list creation)
 
 ## IN_PROGRESS
-FEAT-14: Sorted and Reversed
+FEAT-15: VFS Directory Structure
 
 ## NEXT_UP
-FEAT-15: VFS Directory Structure
+FEAT-16: Global and Nonlocal
 
 ## BLOCKERS
 (None yet)
 
 ## TEST_COUNT
-547 passing / 547 total
+554 passing / 554 total
 
 ## PHASE DETAILS
 

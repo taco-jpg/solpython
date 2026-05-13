@@ -144,6 +144,8 @@ contract CodeGenerator {
     uint8 constant OP_ISINSTANCE = 0xE0;
     uint8 constant OP_TYPEOF = 0xE1;
     uint8 constant OP_LIST_APPEND = 0x76;
+    uint8 constant OP_SORTED = 0x77;
+    uint8 constant OP_REVERSED = 0x78;
 
     uint8 constant OP_HALT = 0xFF;
 
@@ -1577,6 +1579,18 @@ contract CodeGenerator {
         // Built-in: filter(func, iterable) — keep elements where func returns truthy
         if (keccak256(bytes(name)) == keccak256("filter") && argCount == 2) {
             _genFilterBuiltin(nodeIdx);
+            return;
+        }
+
+        // Built-in: sorted(lst) — return new sorted list
+        if (keccak256(bytes(name)) == keccak256("sorted") && argCount == 1) {
+            _emitOp(OP_SORTED);
+            return;
+        }
+
+        // Built-in: reversed(lst) — return new reversed list
+        if (keccak256(bytes(name)) == keccak256("reversed") && argCount == 1) {
+            _emitOp(OP_REVERSED);
             return;
         }
 

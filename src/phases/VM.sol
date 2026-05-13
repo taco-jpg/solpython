@@ -115,6 +115,8 @@ contract VM {
     uint8 constant OP_LIST_SET = 0x72;
     uint8 constant OP_LIST_LEN = 0x73;
     uint8 constant OP_LIST_APPEND = 0x76; // Pop value and list ID, append value
+    uint8 constant OP_SORTED = 0x77;     // Pop list, push new sorted list
+    uint8 constant OP_REVERSED = 0x78;   // Pop list, push new reversed list
 
     uint8 constant OP_MAKE_TUPLE = 0x74;  // Create tuple from TOS elements
     uint8 constant OP_TUPLE_GET = 0x75;   // Get element from tuple by index
@@ -284,6 +286,8 @@ contract VM {
             else if (op == OP_ISINSTANCE) _execIsInstance();
             else if (op == OP_TYPEOF) _execTypeOf();
             else if (op == OP_LIST_APPEND) _execListAppend();
+            else if (op == OP_SORTED) _execSorted();
+            else if (op == OP_REVERSED) _execReversed();
             else if (op == OP_HALT) break;
             else {
                 emit VMError("Unknown opcode", pc - 1);
@@ -1772,5 +1776,38 @@ contract VM {
         uint256 val = _pop();
         uint256 listId = _pop();
         lists[listId].push(val);
+    }
+
+    function _execSorted() internal {
+        uint256 srcId = _pop();
+        uint256 dstId = nextListId++;
+        _gcRegister(dstId);
+        uint256 len = lists[srcId].length;
+        // Copy elements
+        for (uint256 i = 0; i < len; i++) {
+            lists[dstId].push(lists[srcId][i]);
+        }
+        // Bubble sort
+        for (uint256 i = 0; i < len; i++) {
+            for (uint256 j = 0; j + 1 < len - i; j++) {
+                if (lists[dstId][j] > lists[dstId][j + 1]) {
+                    uint256 tmp = lists[dstId][j];
+                    lists[dstId][j] = lists[dstId][j + 1];
+                    lists[dstId][j + 1] = tmp;
+                }
+            }
+        }
+        stack.push(dstId);
+    }
+
+    function _execReversed() internal {
+        uint256 srcId = _pop();
+        uint256 dstId = nextListId++;
+        _gcRegister(dstId);
+        uint256 len = lists[srcId].length;
+        for (uint256 i = len; i > 0; i--) {
+            lists[dstId].push(lists[srcId][i - 1]);
+        }
+        stack.push(dstId);
     }
 }
