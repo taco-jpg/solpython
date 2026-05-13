@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-FIX-9: GC actually decrements refs
+FIX-10: Float precision is 6-digit fixed point, not IEEE 754
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -60,7 +60,7 @@ FIX-9: GC actually decrements refs
 (None yet)
 
 ## TEST_COUNT
-621 passing / 621 total
+625 passing / 625 total
 
 ## PHASE DETAILS
 

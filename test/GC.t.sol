@@ -79,11 +79,33 @@ contract GCTest is Test {
     }
 
     function testListReassignment() public {
-        // Creating new list, old one still tracked
+        // Old list should be freed when variable is reassigned
         VM vm = _compileAndRun("x = [1]\nx = [2]\n");
         assertEq(vm.getGCAllocated(), 2, "should have 2 allocated");
-        // Both are still live (no automatic unref on reassignment yet)
-        assertEq(vm.getGCLive(), 2, "both still live");
+        assertEq(vm.getGCFreed(), 1, "old list should be freed");
+        assertEq(vm.getGCLive(), 1, "only new list should be live");
+    }
+
+    function testListReassignmentRefcount() public {
+        VM vm = _compileAndRun("x = [1]\nx = [2]\n");
+        // First list (id=0) should have refcount 0 and not be live
+        assertEq(vm.getGCRefcount(0), 0, "old list refcount should be 0");
+        assertFalse(vm.getGCLiveStatus(0), "old list should not be live");
+        // Second list (id=1) should have refcount 1 and be live
+        assertEq(vm.getGCRefcount(1), 1, "new list refcount should be 1");
+        assertTrue(vm.getGCLiveStatus(1), "new list should be live");
+    }
+
+    function testGCDictReassignment() public {
+        VM vm = _compileAndRun("x = {1: 2}\nx = {3: 4}\n");
+        assertEq(vm.getGCFreed(), 1, "old dict should be freed");
+        assertEq(vm.getGCLive(), 1, "only new dict should be live");
+    }
+
+    function testGCSetReassignment() public {
+        VM vm = _compileAndRun("x = {1, 2}\nx = {3, 4}\n");
+        assertEq(vm.getGCFreed(), 1, "old set should be freed");
+        assertEq(vm.getGCLive(), 1, "only new set should be live");
     }
 
     function testGCInFunction() public {
@@ -95,6 +117,15 @@ contract GCTest is Test {
     function testGCMultipleTypes() public {
         VM vm = _compileAndRun("a = [1]\nb = {2: 3}\nc = {4, 5}\n");
         assertEq(vm.getGCAllocated(), 3, "should track all collection types");
+    }
+
+    function testGCFunctionFrameCleanup() public {
+        // Lists created in a function should be cleaned up when the function returns
+        // (unless they're returned and assigned to a variable)
+        string memory src = "def make():\n    x = [1, 2, 3]\n    return x\ny = make()\n";
+        VM vm = _compileAndRun(src);
+        assertEq(vm.getGCAllocated(), 1, "only 1 list (returned)");
+        assertEq(vm.getGCLive(), 1, "returned list should still be live");
     }
 
     function testExistingTestsUnaffected() public {

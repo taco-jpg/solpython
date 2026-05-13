@@ -1595,12 +1595,12 @@ contract VM {
     }
 
     function _gcIncRef(uint256 id) internal {
-        if (id == 0 || !gcLive[id]) return;
+        if (!gcLive[id]) return;
         gcRefcounts[id]++;
     }
 
     function _gcDecRef(uint256 id) internal {
-        if (id == 0 || !gcLive[id]) return;
+        if (!gcLive[id]) return;
         gcRefcounts[id]--;
         if (gcRefcounts[id] == 0) {
             gcLive[id] = false;

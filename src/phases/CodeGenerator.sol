@@ -22,6 +22,7 @@ contract CodeGenerator {
     // Variable tracking: scope → name → var slot
     mapping(uint256 => mapping(bytes32 => uint256)) private varSlots;
     mapping(uint256 => uint256) private varCount; // next slot per scope
+    mapping(uint256 => mapping(bytes32 => bool)) private varInitialized; // first assignment done
     uint256 private currentScope;
 
     // Global/nonlocal tracking: scope → name → isGlobal
@@ -134,6 +135,9 @@ contract CodeGenerator {
     uint8 constant OP_STR_SPLIT = 0xA9;
     uint8 constant OP_STR_CHAR_AT = 0xAA;
     uint8 constant OP_IN = 0xAB;         // x in container
+    uint8 constant OP_GC_REF = 0xB0;
+    uint8 constant OP_GC_UNREF = 0xB1;
+    uint8 constant OP_GC_CLEANUP = 0xB2;
 
     uint8 constant OP_TRY_BEGIN = 0xC0;
     uint8 constant OP_TRY_END = 0xC1;
@@ -1876,9 +1880,17 @@ contract CodeGenerator {
                 varSlots[0][key] = varCount[0];
             }
             uint256 slot = varSlots[0][key];
+            // GC: unref old value only if previously initialized
+            if (varInitialized[0][key]) {
+                _emitOp(OP_LOAD_VAR);
+                _emitByte(0);
+                _emitByte(uint8(slot));
+                _emitOp(OP_GC_UNREF);
+            }
             _emitOp(OP_STORE_VAR);
             _emitByte(0); // frame 0 = global
             _emitByte(uint8(slot));
+            varInitialized[0][key] = true;
             return;
         }
 
@@ -1891,9 +1903,17 @@ contract CodeGenerator {
             varSlots[currentScope][key] = varCount[currentScope];
         }
         uint256 slot = varSlots[currentScope][key];
+        // GC: unref old value only if previously initialized
+        if (varInitialized[currentScope][key]) {
+            _emitOp(OP_LOAD_VAR);
+            _emitByte(uint8(currentScope > 0 ? 1 : 0));
+            _emitByte(uint8(slot));
+            _emitOp(OP_GC_UNREF);
+        }
         _emitOp(OP_STORE_VAR);
         _emitByte(uint8(currentScope > 0 ? 1 : 0));
         _emitByte(uint8(slot));
+        varInitialized[currentScope][key] = true;
     }
 
     function _getVarSlot(string memory name) internal returns (uint256) {
@@ -1951,9 +1971,17 @@ contract CodeGenerator {
             varSlots[currentScope][key] = varCount[currentScope];
         }
         uint256 slot = varSlots[currentScope][key];
+        // GC: unref old value only if previously initialized
+        if (varInitialized[currentScope][key]) {
+            _emitOp(OP_LOAD_VAR);
+            _emitByte(uint8(currentScope > 0 ? 1 : 0));
+            _emitByte(uint8(slot));
+            _emitOp(OP_GC_UNREF);
+        }
         _emitOp(OP_STORE_VAR);
         _emitByte(uint8(currentScope > 0 ? 1 : 0));
         _emitByte(uint8(slot));
+        varInitialized[currentScope][key] = true;
     }
 
     function _genLoadVarByName(string memory name) internal {

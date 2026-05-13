@@ -845,3 +845,34 @@ Replaced unique temp names with a single reusable name `__tmp` per scope. This i
 
 ### Test Results
 621/621 passing across 46 suites. +3 new tests, 0 regressions.
+
+---
+
+## 2026-05-12 — FIX-9: GC Actually Decrements Refs
+
+### Problem
+Three issues prevented the GC from actually freeing objects:
+1. Code generator never emitted OP_GC_UNREF — objects were registered but never dereferenced on variable reassignment.
+2. `_gcDecRef`/`_gcIncRef` treated ID 0 as a sentinel (`if (id == 0) return`), but list IDs start at 0, so the first list could never be freed.
+3. Blindly emitting LOAD_VAR + GC_UNREF before every STORE_VAR caused false decrements on first-assignment variables (the default value 0 collided with list ID 0).
+
+### Approach
+- Added OP_GC_UNREF emission before STORE_VAR in both `_genStoreVar` and `_genStoreVarByName`.
+- Removed `id == 0` sentinel from `_gcIncRef`/`_gcDecRef`, relying solely on `gcLive[id]` check.
+- Added `varInitialized` mapping to track whether a variable has been previously assigned, only emitting GC_UNREF on reassignment (not first assignment).
+- Updated 4 existing GC tests to expect freed objects and added GC opcode constants to CodeGenerator.
+
+### Files Changed
+- `src/phases/CodeGenerator.sol` — Added GC_UNREF before STORE_VAR, added `varInitialized` tracking, added GC opcode constants
+- `src/phases/VM.sol` — Removed ID 0 sentinel from `_gcIncRef`/`_gcDecRef`
+- `test/GC.t.sol` — Updated testListReassignment, added 4 new tests
+
+### Tests Added
+4 tests:
+- testListReassignment: old list freed on reassignment
+- testListReassignmentRefcount: refcount drops to 0, gcLive becomes false
+- testGCDictReassignment: old dict freed on reassignment
+- testGCSetReassignment: old set freed on reassignment
+
+### Test Results
+625/625 passing across 46 suites. +4 new tests, 0 regressions.
