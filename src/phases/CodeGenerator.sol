@@ -324,15 +324,40 @@ contract CodeGenerator {
 
     function _genAugAssign(uint256 nodeIdx) internal {
         uint256 lhsIdx = _c1(nodeIdx);
+        AugAssignOp op = AugAssignOp(_iv(nodeIdx));
+
         if (_nt(lhsIdx) == NodeType.IDENTIFIER_REF) {
             _genLoadVar(lhsIdx);   // push current value
             _genExpr(_c2(nodeIdx)); // push RHS
-            AugAssignOp op = AugAssignOp(_iv(nodeIdx));
             if (op == AugAssignOp.PLUS_ASSIGN) _emitOp(OP_ADD);
             else if (op == AugAssignOp.MINUS_ASSIGN) _emitOp(OP_SUB);
             else if (op == AugAssignOp.STAR_ASSIGN) _emitOp(OP_MUL);
             else _emitOp(OP_DIV);
             _genStoreVar(lhsIdx);
+        } else if (_nt(lhsIdx) == NodeType.INDEX_ACCESS) {
+            // lst[i] += value
+            // 1. Load current value via LIST_GET
+            _genExpr(_c1(lhsIdx)); // push list
+            _genExpr(_c2(lhsIdx)); // push index
+            _emitOp(OP_LIST_GET);  // pops index, list → pushes current value
+
+            // 2. Push RHS and apply op
+            _genExpr(_c2(nodeIdx));
+            if (op == AugAssignOp.PLUS_ASSIGN) _emitOp(OP_ADD);
+            else if (op == AugAssignOp.MINUS_ASSIGN) _emitOp(OP_SUB);
+            else if (op == AugAssignOp.STAR_ASSIGN) _emitOp(OP_MUL);
+            else _emitOp(OP_DIV);
+
+            // 3. Store new value in temp
+            string memory tempName = string.concat("__aug", _toString(_forTempCounter));
+            _forTempCounter++;
+            _genStoreVarByName(tempName);
+
+            // 4. Push list and index again, load temp, LIST_SET
+            _genExpr(_c1(lhsIdx)); // push list
+            _genExpr(_c2(lhsIdx)); // push index
+            _genLoadVarByName(tempName);
+            _emitOp(OP_LIST_SET);
         }
     }
 

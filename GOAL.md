@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-FIX-7: Augmented assignment to non-simple targets
+FIX-8: Temp variable slot exhaustion in lst[i] = value
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -60,7 +60,7 @@ FIX-7: Augmented assignment to non-simple targets
 (None yet)
 
 ## TEST_COUNT
-613 passing / 613 total
+618 passing / 618 total
 
 ## PHASE DETAILS
 

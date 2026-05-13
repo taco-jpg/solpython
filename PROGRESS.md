@@ -791,3 +791,34 @@ TDD — wrote 6 new exception tests in test/Exception.t.sol covering multiple ex
 
 ### Test Results
 613/613 passing across 44 suites. +6 new tests, 0 regressions.
+
+---
+
+## 2026-05-12 — FIX-7: Augmented Assignment to Non-Simple Targets
+
+### Problem
+`_genAugAssign` only handled `IDENTIFIER_REF` targets (simple variables like `x += 1`). Augmented assignments to list elements (`lst[i] += value`) were silently ignored — the LHS expression was never evaluated or stored back.
+
+### Approach
+Added `INDEX_ACCESS` handling to `_genAugAssign`. The pattern:
+1. Load current value via LIST_GET (push list, push index, LIST_GET)
+2. Push RHS and apply the arithmetic op (ADD/SUB/MUL/DIV)
+3. Store result in temp variable
+4. Re-emit list and index expressions, load temp, LIST_SET
+
+This re-evaluates list/index expressions twice (for GET and SET), which is acceptable for the current implementation. Uses the same temp variable pattern as `_genAssign` for INDEX_ACCESS targets.
+
+### Files Changed
+- `src/phases/CodeGenerator.sol` — Added INDEX_ACCESS branch in `_genAugAssign`
+- `test/AugAssign.t.sol` — New file with 5 tests
+
+### Tests Added
+5 tests:
+- lst[0] += 5 (integer literal index, add)
+- lst[1] -= 5 (subtract)
+- lst[2] *= 3 (multiply)
+- lst[i] += 10 (variable index)
+- x += 5 regression check (simple variable still works)
+
+### Test Results
+618/618 passing across 45 suites. +5 new tests, 0 regressions.
