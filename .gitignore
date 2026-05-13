@@ -8,3 +8,10 @@ lib/
 
 # OS
 .DS_Store
+__pycache__/
+*.egg-info/
+*.egg
+dist/
+build/
+.venv/
+*.pyc
