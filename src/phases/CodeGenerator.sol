@@ -305,17 +305,15 @@ contract CodeGenerator {
             // Since we already pushed value, we need to use SWAP/ROT.
             // With only SWAP (no ROT), this is tricky. Let me use a temp variable.
 
-            // Store value in a temp variable
-            string memory tempName = string.concat("__asgn", _toString(_forTempCounter));
-            _forTempCounter++;
-            _genStoreVarByName(tempName);
+            // Store value in a reusable temp variable
+            _genStoreVarByName("__tmp");
 
             // Push list and index
             _genExpr(_c1(lhsIdx)); // list
             _genExpr(_c2(lhsIdx)); // index
 
             // Push value
-            _genLoadVarByName(tempName);
+            _genLoadVarByName("__tmp");
 
             // LIST_SET: pops value, index, list
             _emitOp(OP_LIST_SET);
@@ -348,15 +346,13 @@ contract CodeGenerator {
             else if (op == AugAssignOp.STAR_ASSIGN) _emitOp(OP_MUL);
             else _emitOp(OP_DIV);
 
-            // 3. Store new value in temp
-            string memory tempName = string.concat("__aug", _toString(_forTempCounter));
-            _forTempCounter++;
-            _genStoreVarByName(tempName);
+            // 3. Store new value in reusable temp
+            _genStoreVarByName("__tmp");
 
             // 4. Push list and index again, load temp, LIST_SET
             _genExpr(_c1(lhsIdx)); // push list
             _genExpr(_c2(lhsIdx)); // push index
-            _genLoadVarByName(tempName);
+            _genLoadVarByName("__tmp");
             _emitOp(OP_LIST_SET);
         }
     }

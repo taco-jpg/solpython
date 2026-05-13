@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-FIX-8: Temp variable slot exhaustion in lst[i] = value
+FIX-9: GC actually decrements refs
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -60,7 +60,7 @@ FIX-8: Temp variable slot exhaustion in lst[i] = value
 (None yet)
 
 ## TEST_COUNT
-618 passing / 618 total
+621 passing / 621 total
 
 ## PHASE DETAILS
 

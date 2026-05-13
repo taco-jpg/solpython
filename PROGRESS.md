@@ -822,3 +822,26 @@ This re-evaluates list/index expressions twice (for GET and SET), which is accep
 
 ### Test Results
 618/618 passing across 45 suites. +5 new tests, 0 regressions.
+
+---
+
+## 2026-05-12 — FIX-8: Temp Variable Slot Exhaustion
+
+### Problem
+`_genAssign` (for INDEX_ACCESS targets) and `_genAugAssign` (for INDEX_ACCESS targets) used unique temp variable names generated via `_forTempCounter` (`__asgn0`, `__asgn1`, `__aug0`, ...). Each unique name allocated a new variable slot (uint8, max 255). In loops with list assignments, the counter kept incrementing, eventually exhausting slots.
+
+### Approach
+Replaced unique temp names with a single reusable name `__tmp` per scope. This is safe because temps are always stored then loaded within the same statement — no nesting possible. Removed the `_forTempCounter` increment for these two cases.
+
+### Files Changed
+- `src/phases/CodeGenerator.sol` — Replaced `__asgn{N}`/`__aug{N}` with `__tmp`
+- `test/TempSlot.t.sol` — New file with 3 tests
+
+### Tests Added
+3 tests:
+- List assignment inside for-loop (lst[i] = i * 2)
+- Augmented list assignment in loop (lst[i] += i + 1)
+- Multiple list assignments in same loop body
+
+### Test Results
+621/621 passing across 46 suites. +3 new tests, 0 regressions.
