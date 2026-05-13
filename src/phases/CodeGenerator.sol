@@ -888,6 +888,19 @@ contract CodeGenerator {
         } else if (nt == NodeType.BOOL_NOT) {
             _genExpr(_c1(nodeIdx));
             _emitOp(OP_NOT);
+        } else if (nt == NodeType.TERNARY_EXPR) {
+            // a if cond else b
+            _genExpr(_c2(nodeIdx)); // condition
+            _emitOp(OP_JUMP_IF_FALSE);
+            _emitUint32(0); // placeholder
+            uint256 falseJumpOffset = code.length - 4;
+            _genExpr(_c1(nodeIdx)); // true value
+            _emitOp(OP_JUMP);
+            _emitUint32(0); // placeholder
+            uint256 endJumpOffset = code.length - 4;
+            _patchUint32(falseJumpOffset, code.length - falseJumpOffset - 4);
+            _genExpr(_c3(nodeIdx)); // false value
+            _patchUint32(endJumpOffset, code.length - endJumpOffset - 4);
         } else if (nt == NodeType.FUNC_CALL) {
             _genFuncCall(nodeIdx);
         } else if (nt == NodeType.LIST_LITERAL) {

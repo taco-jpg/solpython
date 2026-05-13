@@ -33,6 +33,7 @@ enum NodeType {
     BOOL_AND,           // a and b
     BOOL_OR,            // a or b
     BOOL_NOT,           // not a
+    TERNARY_EXPR,       // a if cond else b  child1=true_val, child2=condition, child3=false_val
     FUNC_CALL,          // name(args)
     LIST_LITERAL,       // [a, b, c]
     INDEX_ACCESS,       // list[i]

@@ -465,7 +465,18 @@ contract Parser {
 
     // ==================== Expression parsing ====================
 
-    function _expr() internal returns (uint256) { return _boolOr(); }
+    function _expr() internal returns (uint256) {
+        uint256 val = _boolOr();
+        if (_cur() == TokenType.KW_IF) {
+            uint256 ln = _ln(); uint256 col = _col();
+            _adv();
+            uint256 cond = _boolOr();
+            _exp(TokenType.KW_ELSE);
+            uint256 falseVal = _expr();
+            return _emit(NodeType.TERNARY_EXPR, val, cond, falseVal, 0, 0, 0, "", ln, col);
+        }
+        return val;
+    }
 
     function _boolOr() internal returns (uint256) {
         uint256 l = _boolAnd();

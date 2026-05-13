@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-FEAT-6: Ternary Expression
+FEAT-7: Chained Comparison
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -38,6 +38,7 @@ FEAT-6: Ternary Expression
 - [x] Multiple Assignment (covered by tuple unpacking: a, b = 1, 2)
 - [x] Default Parameters (7 tests, def f(x, y=10), expression defaults, partial/override)
 - [x] Keyword Arguments (7 tests, positional + keyword mix, reorder, defaults + kwargs)
+- [x] Ternary Expression (7 tests, a if cond else b, nested, in expressions)
 
 ## IN_PROGRESS
 (None — all features complete)
@@ -49,7 +50,7 @@ FEAT-6: Ternary Expression
 (None yet)
 
 ## TEST_COUNT
-486 passing / 486 total
+493 passing / 493 total
 
 ## PHASE DETAILS
 
