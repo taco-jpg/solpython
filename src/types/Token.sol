@@ -81,6 +81,9 @@ enum TokenType {
     DEDENT,
     EOF,
 
+    // F-string
+    FSTRING,
+
     // Error
     ERROR
 }

@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-FEAT-11: Map and Filter builtins
+FEAT-13: Dict Methods (items/values/get/update)
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -44,18 +44,19 @@ FEAT-11: Map and Filter builtins
 - [x] Enumerate and Zip builtins (7 tests, tuple for-loop targets, enumerate/zip desugaring)
 - [x] Isinstance and Type builtins (9 tests, isinstance/typeof opcodes, type classification)
 - [x] Map and Filter builtins (8 tests, OP_LIST_APPEND, desugared for-loop, list building)
+- [x] String Formatting (8 tests, f-strings with {var}, %s/%d formatting, OP_STR_CONCAT)
 
 ## IN_PROGRESS
-(None — all features complete)
+FEAT-13: Dict Methods (items/values/get/update)
 
 ## NEXT_UP
-(None — all features complete)
+FEAT-14: Sorted and Reversed
 
 ## BLOCKERS
 (None yet)
 
 ## TEST_COUNT
-532 passing / 532 total
+540 passing / 540 total
 
 ## PHASE DETAILS
 

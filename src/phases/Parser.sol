@@ -402,6 +402,26 @@ contract Parser {
         return _emit(NodeType.RAISE_STMT, excExpr, 0, 0, 0, 0, 0, "", ln, col);
     }
 
+    function _parseFString() internal returns (uint256) {
+        uint256 ln = _ln(); uint256 col = _col();
+        string memory raw = _lex(); // content between quotes (without f prefix)
+        _adv();
+
+        // Strip surrounding quotes if present
+        bytes memory rawBytes = bytes(raw);
+        string memory content = raw;
+        if (rawBytes.length >= 2 && (rawBytes[0] == 0x22 || rawBytes[0] == 0x27)) {
+            bytes memory stripped = new bytes(rawBytes.length - 2);
+            for (uint256 i = 1; i < rawBytes.length - 1; i++) {
+                stripped[i - 1] = rawBytes[i];
+            }
+            content = string(stripped);
+        }
+
+        // Store raw content in strValue; code generator will parse {var} references
+        return _emit(NodeType.FSTRING_EXPR, 0, 0, 0, 0, 0, 0, content, ln, col);
+    }
+
     function _assignOrExpr() internal returns (uint256) {
         uint256 ln = _ln(); uint256 col = _col();
         uint256 lhs = _expr();
@@ -668,6 +688,9 @@ contract Parser {
         if (t == TokenType.BOOL_TRUE) { _adv(); return _emit(NodeType.BOOL_LITERAL, 0, 0, 0, 0, 0, 1, "", ln, col); }
         if (t == TokenType.BOOL_FALSE) { _adv(); return _emit(NodeType.BOOL_LITERAL, 0, 0, 0, 0, 0, 0, "", ln, col); }
         if (t == TokenType.NONE_VAL) { _adv(); return _emit(NodeType.NONE_LITERAL, 0, 0, 0, 0, 0, 0, "", ln, col); }
+        if (t == TokenType.FSTRING) {
+            return _parseFString();
+        }
         if (t == TokenType.LPAREN) {
             _adv();
             if (_cur() == TokenType.RPAREN) { _adv(); return _emit(NodeType.TUPLE_LITERAL, 0, 0, 0, 0, 0, 0, "", ln, col); }

@@ -212,6 +212,17 @@ contract Lexer {
         bytes memory lexeme = StringLib.slice(source, start, pos);
         string memory lexStr = StringLib.fromBytes(lexeme);
 
+        // Check for f-string: f"..." or F"..."
+        if (lexeme.length == 1 && (lexeme[0] == 0x66 || lexeme[0] == 0x46)) { // 'f' or 'F'
+            if (pos < source.length) {
+                bytes1 next = StringLib.charAt(source, pos);
+                if (next == 0x22 || next == 0x27) { // '"' or "'"
+                    _readFString();
+                    return;
+                }
+            }
+        }
+
         TokenType tt = _keywordType(lexStr);
         _emitToken(tt, lexStr, 0);
     }
@@ -303,6 +314,44 @@ contract Lexer {
 
         bytes memory lexeme = StringLib.slice(source, start, pos);
         _emitToken(TokenType.STRING, StringLib.fromBytes(lexeme), 0);
+    }
+
+    function _readFString() internal {
+        // pos is at the quote character after 'f'
+        bytes1 quote = StringLib.charAt(source, pos);
+        uint256 start = pos;
+        uint256 startCol = column;
+        pos++;
+        column++;
+
+        while (pos < source.length) {
+            bytes1 c = StringLib.charAt(source, pos);
+            if (c == quote) {
+                pos++;
+                column++;
+                break;
+            }
+            if (c == 0x5C) { // backslash
+                pos++;
+                column++;
+                if (pos < source.length) {
+                    pos++;
+                    column++;
+                }
+                continue;
+            }
+            if (StringLib.isNewline(c)) {
+                emit Error("Unterminated f-string", line, startCol);
+                _emitToken(TokenType.ERROR, "unterminated f-string", 0);
+                return;
+            }
+            pos++;
+            column++;
+        }
+
+        // Emit FSTRING with content between quotes (without the f prefix and quotes)
+        bytes memory content = StringLib.slice(source, start + 1, pos - 1);
+        _emitToken(TokenType.FSTRING, StringLib.fromBytes(content), 0);
     }
 
     function _readOperator() internal {

@@ -1285,13 +1285,22 @@ contract CodeGenerator {
                 _emitOp(OP_CALL_METHOD);
                 _emitUint16(uint16(mcArgCount));
             }
+        } else if (nt == NodeType.FSTRING_EXPR) {
+            _genFStringExpr(nodeIdx);
         }
     }
 
     function _genBinaryOp(uint256 nodeIdx) internal {
+        BinaryOpType op = BinaryOpType(_iv(nodeIdx));
+
+        // String formatting: "hello %s" % arg
+        if (op == BinaryOpType.MOD && _nt(_c1(nodeIdx)) == NodeType.STRING_LITERAL) {
+            _genStringFormat(nodeIdx);
+            return;
+        }
+
         _genExpr(_c1(nodeIdx));
         _genExpr(_c2(nodeIdx));
-        BinaryOpType op = BinaryOpType(_iv(nodeIdx));
         if (op == BinaryOpType.ADD) _emitOp(OP_ADD);
         else if (op == BinaryOpType.SUB) _emitOp(OP_SUB);
         else if (op == BinaryOpType.MUL) _emitOp(OP_MUL);
@@ -1313,6 +1322,128 @@ contract CodeGenerator {
         else if (op == CompOpType.GTE) _emitOp(OP_GTE);
         else if (op == CompOpType.IN) _emitOp(OP_IN);
         else if (op == CompOpType.NOT_IN) { _emitOp(OP_IN); _emitOp(OP_NOT); }
+    }
+
+    function _genStringFormat(uint256 nodeIdx) internal {
+        // "hello %s" % arg or "hello %s %d" % (a, b)
+        string memory fmt = _sv(_c1(nodeIdx));
+        uint256 rightSide = _c2(nodeIdx);
+
+        // For tuple args: extract elements; for single arg: use directly
+        // For simplicity, handle single %s/%d replacement
+        bytes memory fmtBytes = bytes(fmt);
+        bool firstPart = true;
+        uint256 i = 0;
+        bool argConsumed = false;
+
+        while (i < fmtBytes.length) {
+            // Find next % or end
+            uint256 textStart = i;
+            while (i < fmtBytes.length && fmtBytes[i] != 0x25) { // not %
+                i++;
+            }
+            // Emit text part if non-empty
+            if (i > textStart) {
+                bytes memory textPart = new bytes(i - textStart);
+                for (uint256 j = 0; j < i - textStart; j++) {
+                    textPart[j] = fmtBytes[textStart + j];
+                }
+                if (firstPart) {
+                    _genPushString(string(textPart));
+                    firstPart = false;
+                } else {
+                    _genPushString(string(textPart));
+                    _emitOp(OP_STR_CONCAT);
+                }
+            }
+            // Check if we hit %
+            if (i < fmtBytes.length && fmtBytes[i] == 0x25) {
+                i++; // skip %
+                if (i < fmtBytes.length) {
+                    bytes1 spec = fmtBytes[i];
+                    i++; // skip specifier
+                    if (!argConsumed) {
+                        _genExpr(rightSide);
+                        // Convert to string for both %s and %d
+                        _emitOp(OP_INT_TO_STR);
+                        argConsumed = true;
+                    }
+                    if (firstPart) {
+                        firstPart = false;
+                    } else {
+                        _emitOp(OP_STR_CONCAT);
+                    }
+                }
+            }
+        }
+        if (firstPart) {
+            _genPushString("");
+        }
+    }
+
+    function _genFStringExpr(uint256 nodeIdx) internal {
+        // F-string: f"hello {name} world"
+        // Split content on { and } to get text parts and variable references
+        string memory content = _sv(nodeIdx);
+        bytes memory cb = bytes(content);
+
+        // Parse parts: alternating text and variable names
+        // Start with empty string, concatenate each part
+        bool firstPart = true;
+        uint256 i = 0;
+        while (i < cb.length) {
+            // Find next { or end
+            uint256 textStart = i;
+            while (i < cb.length && cb[i] != 0x7B && cb[i] != 0x7D) { // not { or }
+                i++;
+            }
+            // Emit text part if non-empty
+            if (i > textStart) {
+                bytes memory textPart = new bytes(i - textStart);
+                for (uint256 j = 0; j < i - textStart; j++) {
+                    textPart[j] = cb[textStart + j];
+                }
+                if (firstPart) {
+                    _genPushString(string(textPart));
+                    firstPart = false;
+                } else {
+                    _genPushString(string(textPart));
+                    _emitOp(OP_STR_CONCAT);
+                }
+            }
+            // Check if we hit a {
+            if (i < cb.length && cb[i] == 0x7B) {
+                i++; // skip {
+                uint256 varStart = i;
+                while (i < cb.length && cb[i] != 0x7D) {
+                    i++;
+                }
+                // Extract variable name
+                bytes memory varName = new bytes(i - varStart);
+                for (uint256 j = 0; j < i - varStart; j++) {
+                    varName[j] = cb[varStart + j];
+                }
+                if (i < cb.length && cb[i] == 0x7D) i++; // skip }
+
+                // Generate code to load variable and convert to string
+                string memory varNameStr = string(varName);
+                // Check if it's a string literal (needs str() conversion)
+                // For now, treat as variable reference
+                _genLoadVarByName(varNameStr);
+                // Convert to string (handles int->str)
+                _emitOp(OP_INT_TO_STR);
+
+                if (firstPart) {
+                    firstPart = false;
+                } else {
+                    _emitOp(OP_STR_CONCAT);
+                }
+            }
+        }
+        // If empty f-string, push empty string
+        if (firstPart) {
+            _genPushString("");
+        }
     }
 
     function _genFuncCall(uint256 nodeIdx) internal {

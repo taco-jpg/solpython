@@ -61,6 +61,9 @@ enum NodeType {
     // Tuples
     TUPLE_LITERAL,      // (a, b, c)  exprAux = [e0, e1, ...]
 
+    // F-strings
+    FSTRING_EXPR,       // f"hello {name}"  exprAux = [part0, part1, ...] intValue = numStringParts
+
     // Default parameters
     DEFAULT_VALUE,      // sentinel for default param: child1 = default expr node
 
