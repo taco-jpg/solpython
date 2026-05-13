@@ -1128,30 +1128,35 @@ contract CodeGenerator {
         // Try body
         if (_c1(nodeIdx) != 0) _genBlock(_c1(nodeIdx));
 
-        // Try ended successfully — jump over except blocks
+        // Try ended successfully — jump to finally (always executes)
         _emitOp(OP_TRY_END);
         _emitOp(OP_JUMP);
-        _emitUint32(0); // placeholder — backpatch to after all except/finally
-        uint256 jumpOverPatch = code.length - 4;
+        _emitUint32(0); // placeholder — backpatch to finally start
+        uint256 normalJumpPatch = code.length - 4;
 
         // Backpatch TRY_BEGIN handler to here (except handler)
-        _patchUint32(tryBeginPatch, code.length - tryBeginPatch - 4);
+        // _execRaise does pc = handlerPC (absolute in code section).
+        // code[] includes the 7-byte header, but VM code starts at index 0.
+        _patchUint32(tryBeginPatch, code.length - HEADER_SIZE);
 
         // Except branches
         uint256 exceptStart = _ai(nodeIdx);
         uint256 exceptCount = _ac(nodeIdx);
+
+        // Collect jump offsets from except bodies for backpatching
+        uint256[] memory exceptJumps = new uint256[](exceptCount);
+        uint256 exceptJumpCount = 0;
         for (uint256 i = 0; i < exceptCount; i++) {
             uint256 exceptIdx = _ea(exceptStart + i);
             // Catch the exception
             _emitOp(OP_CATCH);
             // Except body
             if (_c2(exceptIdx) != 0) _genBlock(_c2(exceptIdx));
-            // Jump to after finally
-            if (_c2(nodeIdx) != 0 || i < exceptCount - 1) {
-                _emitOp(OP_JUMP);
-                _emitUint32(0);
-                // We'd need to backpatch this, but for simplicity, just emit
-            }
+            // Jump to finally
+            _emitOp(OP_JUMP);
+            _emitUint32(0); // placeholder
+            exceptJumps[exceptJumpCount] = code.length - 4;
+            exceptJumpCount++;
         }
 
         // If no except branches, we still need to handle the case
@@ -1161,13 +1166,18 @@ contract CodeGenerator {
             _emitOp(OP_POP);
         }
 
-        // Finally branch
-        if (_c2(nodeIdx) != 0) {
-            _genBlock(_c2(nodeIdx));
+        // Finally start — backpatch normal path and all except body jumps here
+        uint256 finallyStart = code.length;
+        _patchUint32(normalJumpPatch, finallyStart - normalJumpPatch - 4);
+        for (uint256 i = 0; i < exceptJumpCount; i++) {
+            _patchUint32(exceptJumps[i], finallyStart - exceptJumps[i] - 4);
         }
 
-        // Backpatch jump over
-        _patchUint32(jumpOverPatch, code.length - jumpOverPatch - 4);
+        // Finally branch — _c2 is FINALLY_BRANCH wrapper, its body is in child1
+        if (_c2(nodeIdx) != 0) {
+            uint256 finallyBranch = _c2(nodeIdx);
+            if (_c1(finallyBranch) != 0) _genBlock(_c1(finallyBranch));
+        }
     }
 
     function _genRaiseStmt(uint256 nodeIdx) internal {

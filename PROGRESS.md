@@ -761,3 +761,33 @@ All disjoint. No collisions.
 
 ### Test Results
 607/607 passing across 44 suites. +6 new tests, 0 regressions.
+
+---
+
+## 2026-05-12 — FIX-6: Exception Handling — Multiple Except & Finally JUMP Backpatch
+
+### Problem
+Exception handling with try/except/finally had three bugs:
+1. **Handler PC was relative offset, used as absolute**: `_patchUint32(tryBeginPatch, code.length - tryBeginPatch - 4)` stored a relative offset, but `_execRaise` does `pc = handlerPC` (absolute). Fix: store absolute position.
+2. **Header offset mismatch**: `code.length` in CodeGenerator includes the 7-byte header (HEADER_SIZE), but the VM extracts code starting at index 0. So absolute handlerPC was 7 bytes too high. Fix: `code.length - HEADER_SIZE`.
+3. **Finally block not generated**: `_genBlock(_c2(nodeIdx))` passed the FINALLY_BRANCH wrapper node, but `_genBlock` reads auxIndex/auxCount from the node (which are 0 for FINALLY_BRANCH). The actual body is in child1. Fix: dereference through `_c1(finallyBranch)`.
+
+### Approach
+TDD — wrote 6 new exception tests in test/Exception.t.sol covering multiple except blocks, finally execution on normal/exception paths, nested try/except, and re-raise. Debugged with execution trace (temporary `emit Trace` in VM dispatch loop) and bytecode disassembly to find the 7-byte header offset issue.
+
+### Files Changed
+- `src/phases/CodeGenerator.sol` — Fixed `_genTryStmt`: handlerPC backpatch, finally block generation
+- `src/phases/VM.sol` — (temporary trace removed)
+- `test/Exception.t.sol` — 6 new tests + corrected assertion in testExceptWithFinallyControlFlow
+
+### Tests Added
+6 tests:
+- testTwoExceptFirstMatches: first except catches, finally runs, control continues
+- testTwoExceptNoException: no exception, finally still runs
+- testFinallyAlwaysRuns: try-finally without except
+- testFinallyWithRaise: exception caught, finally runs
+- testNestedTryExcept: inner raises, outer catches
+- testExceptWithFinallyControlFlow: control continues after try/except/finally
+
+### Test Results
+613/613 passing across 44 suites. +6 new tests, 0 regressions.

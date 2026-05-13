@@ -1,8 +1,7 @@
 # FIXES.md — Critical Fix Queue
 
 ## CURRENT_FIX
-FIX-6: Exception handling — multiple except & finally JUMP backpatch
-  Sub-step: Read current exception codegen
+FIX-7: Augmented assignment to non-simple targets
 
 ## COMPLETED
 - [x] FIX-1: _classifyType empty-list misclassification (commit 6a47a93, +5 tests)
@@ -10,6 +9,7 @@ FIX-6: Exception handling — multiple except & finally JUMP backpatch
 - [x] FIX-3: None vs -1 collision (commit 147ca96, +8 tests)
 - [x] FIX-4: Integer range / string ID collision (commit 3b70c02, +6 tests)
 - [x] FIX-5: Float tag false positives (commit pending, +6 tests)
+- [x] FIX-6: Exception handling — multiple except & finally JUMP backpatch (+6 tests)
 
 ## QUEUE (in priority order — DO NOT REORDER)
 - [x] FIX-1: _classifyType empty-list misclassification
@@ -17,11 +17,7 @@ FIX-6: Exception handling — multiple except & finally JUMP backpatch
 - [x] FIX-3: None vs -1 collision
 - [x] FIX-4: Integer range / string ID collision
 - [x] FIX-5: Float tag false positives on extreme values
-- [ ] FIX-6: Exception handling — multiple except & finally JUMP backpatch
-- [ ] FIX-3: None vs -1 collision
-- [ ] FIX-4: Integer range / string ID collision
-- [ ] FIX-5: Float tag false positives on extreme values
-- [ ] FIX-6: Exception handling — multiple except & finally JUMP backpatch
+- [x] FIX-6: Exception handling — multiple except & finally JUMP backpatch
 - [ ] FIX-7: Augmented assignment to non-simple targets
 - [ ] FIX-8: Temp variable slot exhaustion in lst[i] = value
 - [ ] FIX-9: GC actually decrements refs
@@ -37,9 +33,10 @@ FIX-6: Exception handling — multiple except & finally JUMP backpatch
 - FIX-1: `len([])` returns 0 which is also a valid list ID. This is a value-space collision that requires type tagging (FIX-2) to fully resolve. Decision: accept this limitation for FIX-1, document it. FIX-2 will introduce BOOL_TAG and address 0/1 ambiguity.
 - FIX-3: `is` keyword was not parsed as comparison operator. Fixed by adding KW_IS to _isCmp/_cmpOp, mapping `is` → EQ and `is not` → NEQ.
 - FIX-3: -1 (2^256-1) collides with string ID range (>= 2^62). isinstance(-1, int) returns TYPE_STR. This is FIX-4's domain. Decision: test -1 == None instead of isinstance(-1, int) for FIX-3.
+- FIX-6: Three bugs in _genTryStmt: (1) handlerPC backpatch used relative offset but _execRaise treats it as absolute — fixed with `code.length` backpatch. (2) code.length included 7-byte header but VM code starts at index 0 — fixed with `code.length - HEADER_SIZE`. (3) Finally block body not generated because _genBlock received FINALLY_BRANCH wrapper node — fixed by dereferencing through `_c1(finallyBranch)`.
 
 ## FOLLOW_UPS
 (things noticed but out of scope for current fix)
 
 ## TEST_COUNT
-607 passing / 607 total
+613 passing / 613 total

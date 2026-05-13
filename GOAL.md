@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-FIX-6: Exception handling — multiple except & finally JUMP backpatch
+FIX-7: Augmented assignment to non-simple targets
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -60,7 +60,7 @@ FIX-6: Exception handling — multiple except & finally JUMP backpatch
 (None yet)
 
 ## TEST_COUNT
-607 passing / 607 total
+613 passing / 613 total
 
 ## PHASE DETAILS
 
