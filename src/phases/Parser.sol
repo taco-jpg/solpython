@@ -509,13 +509,33 @@ contract Parser {
 
     function _cmp() internal returns (uint256) {
         uint256 l = _add();
+        if (!_isCmp(_cur())) return l;
+
+        uint256 ln = _ln(); uint256 col = _col();
+        CompOpType op = _cmpOp(_cur());
+        _adv();
+        uint256 m = _add();
+
+        // Chained comparison: a op1 b op2 c ... → (a op1 b) and (b op2 c) and ...
         if (_isCmp(_cur())) {
-            uint256 ln = _ln(); uint256 col = _col();
-            CompOpType op = _cmpOp(_cur());
-            _adv();
-            return _emit(NodeType.COMPARISON, l, _add(), 0, 0, 0, uint256(op), "", ln, col);
+            return _cmpChain(l, m, op, ln, col);
         }
-        return l;
+
+        return _emit(NodeType.COMPARISON, l, m, 0, 0, 0, uint256(op), "", ln, col);
+    }
+
+    function _cmpChain(uint256 l, uint256 m, CompOpType op, uint256 ln, uint256 col) internal returns (uint256) {
+        uint256 result = _emit(NodeType.COMPARISON, l, m, 0, 0, 0, uint256(op), "", ln, col);
+        while (_isCmp(_cur())) {
+            ln = _ln(); col = _col();
+            CompOpType nextOp = _cmpOp(_cur());
+            _adv();
+            uint256 r = _add();
+            uint256 nextCmp = _emit(NodeType.COMPARISON, m, r, 0, 0, 0, uint256(nextOp), "", ln, col);
+            result = _emit(NodeType.BOOL_AND, result, nextCmp, 0, 0, 0, 0, "", ln, col);
+            m = r;
+        }
+        return result;
     }
 
     function _isCmp(TokenType t) internal view returns (bool) {

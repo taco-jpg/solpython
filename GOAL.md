@@ -1,7 +1,7 @@
 # GOAL.md — Python-to-EVM Compiler in Solidity
 
 ## CURRENT_TASK
-FEAT-7: Chained Comparison
+FEAT-8: For...Else and While...Else
 
 ## COMPLETED
 - [x] Project scaffolding (Foundry, directory structure)
@@ -39,6 +39,7 @@ FEAT-7: Chained Comparison
 - [x] Default Parameters (7 tests, def f(x, y=10), expression defaults, partial/override)
 - [x] Keyword Arguments (7 tests, positional + keyword mix, reorder, defaults + kwargs)
 - [x] Ternary Expression (7 tests, a if cond else b, nested, in expressions)
+- [x] Chained Comparison (8 tests, a < b < c, 4 operands, mixed ops)
 
 ## IN_PROGRESS
 (None — all features complete)
@@ -50,7 +51,7 @@ FEAT-7: Chained Comparison
 (None yet)
 
 ## TEST_COUNT
-493 passing / 493 total
+501 passing / 501 total
 
 ## PHASE DETAILS
 
