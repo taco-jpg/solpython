@@ -155,3 +155,19 @@ def run_with_imports(source: str, modules: dict[str, str], *, verbose: bool = Fa
     receipt = w3.eth.get_transaction_receipt(tx_hash)
 
     return _decode_output(w3, receipt)
+
+
+def compile_to_solidity(source: str, *, verbose: bool = False) -> str:
+    """Compile Python source and return generated Solidity code."""
+    w3, compiler, vm, sender, gas = _setup_evm()
+    if verbose:
+        print(f"[solpython] Compiling {len(source)} chars of Python to Solidity...")
+    return compiler.functions.compileToSolidity(source).call({"from": sender, "gas": gas})
+
+
+def compile_to_yul(source: str, *, verbose: bool = False) -> str:
+    """Compile Python source and return generated Yul code."""
+    w3, compiler, vm, sender, gas = _setup_evm()
+    if verbose:
+        print(f"[solpython] Compiling {len(source)} chars of Python to Yul...")
+    return compiler.functions.compileToYul(source).call({"from": sender, "gas": gas})

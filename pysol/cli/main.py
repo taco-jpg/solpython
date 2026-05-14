@@ -16,6 +16,8 @@ def main():
     parser.add_argument("-v", "--verbose", action="store_true", help="Show compilation details")
     parser.add_argument("--version", action="store_true", help="Show version and exit")
     parser.add_argument("--build", action="store_true", help="Compile Solidity contracts and exit")
+    parser.add_argument("--backend", choices=["vm", "solidity", "yul"], default="vm",
+                        help="Backend: vm (execute, default), solidity (transpile), yul (transpile)")
 
     args = parser.parse_args()
 
@@ -33,23 +35,28 @@ def main():
         source = args.command
         if not source.endswith("\n"):
             source += "\n"
-        _execute(source, verbose=args.verbose)
+        _execute(source, verbose=args.verbose, backend=args.backend)
         return
 
     if args.script:
         if not os.path.exists(args.script):
             print(f"solpython: can't open file '{args.script}': No such file or directory")
             sys.exit(1)
-        _execute_file(args.script, verbose=args.verbose)
+        _execute_file(args.script, verbose=args.verbose, backend=args.backend)
         return
 
     _repl(verbose=args.verbose)
 
 
-def _execute(source: str, *, verbose: bool = False):
-    from pysol.executor import run
+def _execute(source: str, *, verbose: bool = False, backend: str = "vm"):
+    from pysol.executor import run, compile_to_solidity, compile_to_yul
     try:
-        output = run(source, verbose=verbose)
+        if backend == "solidity":
+            output = compile_to_solidity(source, verbose=verbose)
+        elif backend == "yul":
+            output = compile_to_yul(source, verbose=verbose)
+        else:
+            output = run(source, verbose=verbose)
         if output:
             print(output)
     except FileNotFoundError as e:
@@ -63,10 +70,17 @@ def _execute(source: str, *, verbose: bool = False):
         sys.exit(1)
 
 
-def _execute_file(path: str, *, verbose: bool = False):
-    from pysol.executor import run_file
+def _execute_file(path: str, *, verbose: bool = False, backend: str = "vm"):
+    from pysol.executor import run_file, compile_to_solidity, compile_to_yul
     try:
-        output = run_file(path, verbose=verbose)
+        if backend in ("solidity", "yul"):
+            source = Path(path).read_text()
+            if backend == "solidity":
+                output = compile_to_solidity(source, verbose=verbose)
+            else:
+                output = compile_to_yul(source, verbose=verbose)
+        else:
+            output = run_file(path, verbose=verbose)
         if output:
             print(output)
     except FileNotFoundError as e:
