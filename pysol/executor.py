@@ -1,6 +1,7 @@
 """Execute Python source via the on-chain compiler and VM."""
 
 import json
+import re
 from pathlib import Path
 
 _ARTIFACTS_DIR = Path(__file__).parent / "contracts" / "artifacts"
@@ -108,6 +109,36 @@ def run(source: str, *, verbose: bool = False) -> str:
     receipt = w3.eth.get_transaction_receipt(tx_hash)
 
     return _decode_output(w3, receipt)
+
+
+def _resolve_imports(source: str, script_dir: Path) -> dict[str, str]:
+    """Parse source for import statements and load module files from disk."""
+    modules = {}
+    for match in re.finditer(r"^from\s+(\w+)\s+import\s+", source, re.MULTILINE):
+        mod_name = match.group(1)
+        if mod_name in modules:
+            continue
+        mod_path = script_dir / f"{mod_name}.py"
+        if mod_path.exists():
+            modules[mod_name] = mod_path.read_text()
+    for match in re.finditer(r"^import\s+(\w+)", source, re.MULTILINE):
+        mod_name = match.group(1)
+        if mod_name in modules:
+            continue
+        mod_path = script_dir / f"{mod_name}.py"
+        if mod_path.exists():
+            modules[mod_name] = mod_path.read_text()
+    return modules
+
+
+def run_file(path: str, *, verbose: bool = False) -> str:
+    """Run a Python file, auto-resolving imports from the same directory."""
+    script_path = Path(path)
+    source = script_path.read_text()
+    modules = _resolve_imports(source, script_path.parent)
+    if modules:
+        return run_with_imports(source, modules, verbose=verbose)
+    return run(source, verbose=verbose)
 
 
 def run_with_imports(source: str, modules: dict[str, str], *, verbose: bool = False) -> str:

@@ -40,8 +40,7 @@ def main():
         if not os.path.exists(args.script):
             print(f"solpython: can't open file '{args.script}': No such file or directory")
             sys.exit(1)
-        source = Path(args.script).read_text()
-        _execute(source, verbose=args.verbose)
+        _execute_file(args.script, verbose=args.verbose)
         return
 
     _repl(verbose=args.verbose)
@@ -51,6 +50,23 @@ def _execute(source: str, *, verbose: bool = False):
     from pysol.executor import run
     try:
         output = run(source, verbose=verbose)
+        if output:
+            print(output)
+    except FileNotFoundError as e:
+        print(str(e))
+        sys.exit(1)
+    except Exception as e:
+        print(f"solpython: error: {e}", file=sys.stderr)
+        if verbose:
+            import traceback
+            traceback.print_exc()
+        sys.exit(1)
+
+
+def _execute_file(path: str, *, verbose: bool = False):
+    from pysol.executor import run_file
+    try:
+        output = run_file(path, verbose=verbose)
         if output:
             print(output)
     except FileNotFoundError as e:
