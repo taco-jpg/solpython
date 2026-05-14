@@ -111,23 +111,22 @@ def run(source: str, *, verbose: bool = False) -> str:
     return _decode_output(w3, receipt)
 
 
-def _resolve_imports(source: str, script_dir: Path) -> dict[str, str]:
-    """Parse source for import statements and load module files from disk."""
+def _resolve_imports(source: str, script_dir: Path, *, _seen: set[str] | None = None) -> dict[str, str]:
+    """Parse source for import statements and load module files from disk (recursive)."""
+    if _seen is None:
+        _seen = set()
     modules = {}
-    for match in re.finditer(r"^from\s+(\w+)\s+import\s+", source, re.MULTILINE):
-        mod_name = match.group(1)
-        if mod_name in modules:
+    for match in re.finditer(r"^(?:from\s+(\w+)\s+import\s+|import\s+(\w+))", source, re.MULTILINE):
+        mod_name = match.group(1) or match.group(2)
+        if mod_name in _seen:
             continue
+        _seen.add(mod_name)
         mod_path = script_dir / f"{mod_name}.py"
         if mod_path.exists():
-            modules[mod_name] = mod_path.read_text()
-    for match in re.finditer(r"^import\s+(\w+)", source, re.MULTILINE):
-        mod_name = match.group(1)
-        if mod_name in modules:
-            continue
-        mod_path = script_dir / f"{mod_name}.py"
-        if mod_path.exists():
-            modules[mod_name] = mod_path.read_text()
+            mod_src = mod_path.read_text()
+            modules[mod_name] = mod_src
+            nested = _resolve_imports(mod_src, script_dir, _seen=_seen)
+            modules.update(nested)
     return modules
 
 

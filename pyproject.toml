@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "solpython"
-version = "0.1.1"
+version = "0.1.2"
 description = "Python-to-EVM compiler — run Python on-chain via a Solidity smart contract pipeline"
 readme = "README.md"
 license = "MIT"
